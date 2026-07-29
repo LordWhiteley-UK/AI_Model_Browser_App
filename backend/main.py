@@ -130,7 +130,7 @@ def get_launcher_options(item_id: int, session: Session = Depends(get_session)):
 
 @app.get("/api/discover/search")
 def discover_search(
-    query: str = Query(default="", min_length=1),
+    query: str = Query(default=""),
     capability: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=50),
     session: Session = Depends(get_session),

@@ -55,7 +55,7 @@ function CompatibilityBadge({
 }
 
 export default function Discover() {
-  const [query, setQuery] = useState("llama");
+  const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [result, setResult] = useState<DiscoverResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -67,7 +67,6 @@ export default function Discover() {
   const [downloadResult, setDownloadResult] = useState<string | null>(null);
 
   async function performSearch() {
-    if (!query.trim()) return;
     setLoading(true);
     setError(null);
     try {
@@ -140,13 +139,13 @@ export default function Discover() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && performSearch()}
-              placeholder="Search Hugging Face (e.g. llama, qwen, mistral)"
+              placeholder="Search Hugging Face, or leave empty to see popular models"
               className="w-full rounded-lg border border-gray-600 bg-gray-900 pl-9 pr-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
             />
           </div>
           <button
             onClick={performSearch}
-            disabled={loading || !query.trim()}
+            disabled={loading}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
           >
             {loading ? (
@@ -204,7 +203,7 @@ export default function Discover() {
         {families.length === 0 && !loading && !error && (
           <div className="rounded-lg border border-dashed border-gray-600 p-12 text-center text-gray-400">
             <Zap className="mx-auto mb-3 w-10 h-10 text-gray-600" />
-            <p>Search Hugging Face to discover model families.</p>
+            <p>Showing the most popular Hugging Face model families by downloads.</p>
           </div>
         )}
 

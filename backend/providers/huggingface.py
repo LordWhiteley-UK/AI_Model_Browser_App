@@ -63,6 +63,7 @@ class HuggingFaceProvider(BaseProvider):
         capability: str | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
+        # An empty query with sort="downloads" returns the most popular models on the Hub.
         models = self.api.list_models(
             search=query,
             limit=limit,
