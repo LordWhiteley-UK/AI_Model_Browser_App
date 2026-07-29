@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(cd /Users/jps/AI_Model_Browser_App && npm *)",
+      "Bash(cd /Users/jps/AI_Model_Browser_App/frontend && npm *)",
+      "Bash(cd /Users/jps/AI_Model_Browser_App/backend && ./venv/bin/python -m uvicorn *)",
+      "Bash(cd /Users/jps/AI_Model_Browser_App/backend && ./venv/bin/pip install *)",
+      "Bash(cd /Users/jps/AI_Model_Browser_App/backend && python3 -m venv *)",
+      "Bash(npx playwright install *)",
+      "Bash(node /Users/jps/AI_Model_Browser_App/frontend/verify_*.mjs)",
+      "Bash(curl -s http://127.0.0.1:8000/*)",
+      "Bash(sleep * && curl -s http://127.0.0.1:8000/*)",
+      "Bash(ls -la /Users/jps/AI_Model_Browser_App/*)",
+      "Bash(find /Users/jps/AI_Model_Browser_App -maxdepth *)",
+      "Read(/Users/jps/AI_Model_Browser_App/**)",
+      "Edit(/Users/jps/AI_Model_Browser_App/**)",
+      "Write(/Users/jps/AI_Model_Browser_App/**)"
+    ]
+  }
+}
