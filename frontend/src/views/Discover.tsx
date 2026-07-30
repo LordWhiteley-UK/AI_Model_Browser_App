@@ -15,7 +15,26 @@ import {
   Zap,
 } from "lucide-react";
 
-const CAPABILITY_FILTERS = ["All", "LLM", "Vision", "Coding"];
+const CAPABILITY_FILTERS = [
+  "All",
+  "LLM",
+  "Vision",
+  "Tool Use",
+  "Reasoning",
+  "Coding",
+  "Embedding",
+  "Audio",
+  "Multimodal",
+];
+const FORMAT_FILTERS = [
+  "All",
+  "GGUF",
+  "Safetensors",
+  "MLX",
+  "Pickled",
+  "ONNX",
+  "EXL2",
+];
 
 type DiscoverMode = "popular" | "trending" | "search";
 
@@ -67,6 +86,7 @@ export default function Discover() {
   const [mode, setMode] = useState<DiscoverMode>("popular");
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const [activeFormat, setActiveFormat] = useState("All");
   const [result, setResult] = useState<DiscoverResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,13 +107,31 @@ export default function Discover() {
     try {
       const capabilityFilter =
         activeFilter === "All" ? undefined : activeFilter;
+      const formatFilter = activeFormat === "All" ? undefined : activeFormat;
       let data: DiscoverResult;
       if (mode === "popular") {
-        data = await searchModels("", capabilityFilter, 20, "downloads");
+        data = await searchModels(
+          "",
+          capabilityFilter,
+          formatFilter,
+          20,
+          "downloads",
+        );
       } else if (mode === "trending") {
-        data = await searchModels("", capabilityFilter, 20, "trendingScore");
+        data = await searchModels(
+          "",
+          capabilityFilter,
+          formatFilter,
+          20,
+          "trendingScore",
+        );
       } else {
-        data = await searchModels(query.trim(), capabilityFilter, 20);
+        data = await searchModels(
+          query.trim(),
+          capabilityFilter,
+          formatFilter,
+          20,
+        );
       }
       setResult(data);
       setExpandedFamilies(new Set(data.families.slice(0, 3).map((f) => f.id)));
@@ -107,7 +145,7 @@ export default function Discover() {
   useEffect(() => {
     performSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, activeFilter]);
+  }, [mode, activeFilter, activeFormat]);
 
   function toggleFamily(id: string) {
     setExpandedFamilies((prev) => {
@@ -221,6 +259,22 @@ export default function Discover() {
           ))}
         </div>
 
+        <div className="mt-3 flex flex-wrap gap-2">
+          {FORMAT_FILTERS.map((fmt) => (
+            <button
+              key={fmt}
+              onClick={() => setActiveFormat(fmt)}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                activeFormat === fmt
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              {fmt === "All" ? "All formats" : fmt}
+            </button>
+          ))}
+        </div>
+
         {result && (
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-400">
             <span>
@@ -328,6 +382,11 @@ function FamilyCard({
             <p className="text-sm text-gray-400 mt-1">
               {family.author} · {family.capabilities}
             </p>
+            {family.description && (
+              <p className="mt-2 text-sm text-gray-300 line-clamp-2">
+                {family.description}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-4 text-sm text-gray-400">
             <span className="flex items-center gap-1">

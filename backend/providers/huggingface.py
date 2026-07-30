@@ -2,6 +2,7 @@ import os
 import re
 from typing import Any
 
+import httpx
 from huggingface_hub import HfApi, hf_hub_url
 
 from providers.base import BaseProvider
@@ -11,10 +12,29 @@ SUPPORTED_EXTENSIONS = {".gguf", ".safetensors", ".bin", ".onnx", ".mlx", ".exl2
 CAPABILITY_TAGS = {
     "llm": "LLM",
     "text-generation-inference": "LLM",
+    "text-generation": "LLM",
     "image-to-text": "Vision",
     "visual-question-answering": "Vision",
     "text-to-image": "Vision",
+    "vision": "Vision",
     "code": "Coding",
+    "tool-use": "Tool Use",
+    "tooluse": "Tool Use",
+    "tools": "Tool Use",
+    "function-calling": "Tool Use",
+    "function_calling": "Tool Use",
+    "reasoning": "Reasoning",
+    "chain-of-thought": "Reasoning",
+    "chain_of_thought": "Reasoning",
+    "cot": "Reasoning",
+    "math": "Reasoning",
+    "embedding": "Embedding",
+    "sentence-similarity": "Embedding",
+    "feature-extraction": "Embedding",
+    "audio-to-text": "Audio",
+    "automatic-speech-recognition": "Audio",
+    "text-to-speech": "Audio",
+    "multimodal": "Multimodal",
 }
 
 
@@ -30,9 +50,9 @@ def _parse_quant_method(filename: str) -> str | None:
     return None
 
 
-def _detect_format(filename: str) -> str:
+def _detect_format(filename: str, repo_id: str = "") -> str:
     ext = os.path.splitext(filename)[1].lower()
-    return {
+    fmt = {
         ".gguf": "GGUF",
         ".safetensors": "Safetensors",
         ".bin": "Pickled",
@@ -40,6 +60,14 @@ def _detect_format(filename: str) -> str:
         ".mlx": "MLX",
         ".exl2": "EXL2",
     }.get(ext, ext.lstrip(".").upper() or "Unknown")
+
+    repo_lower = repo_id.lower()
+    if fmt in ("Safetensors", "Pickled", "Unknown"):
+        if "exl2" in repo_lower:
+            return "EXL2"
+        if "mlx" in repo_lower:
+            return "MLX"
+    return fmt
 
 
 def _infer_capability(tags: list[str]) -> str:
@@ -53,6 +81,46 @@ def _infer_capability(tags: list[str]) -> str:
     return ", ".join(sorted(matched)) if matched else "LLM"
 
 
+def _extract_description(model) -> str | None:
+    card_data = getattr(model, "cardData", None) or {}
+    if isinstance(card_data, dict):
+        for key in ("description", "summary", "model_description"):
+            value = card_data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return None
+
+
+def _fetch_readme_summary(repo_id: str) -> str | None:
+    url = f"https://huggingface.co/{repo_id}/raw/main/README.md"
+    try:
+        with httpx.Client(timeout=10) as client:
+            response = client.get(url, headers={"Range": "bytes=0-2047"})
+            response.raise_for_status()
+            text = response.text
+    except Exception:
+        return None
+
+    # Strip YAML frontmatter
+    if text.startswith("---"):
+        end = text.find("---", 3)
+        if end != -1:
+            text = text[end + 3 :]
+
+    # Extract first non-empty paragraph, stripping markdown links/images
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line or line.startswith("#") or line == "---":
+            continue
+        # Remove markdown link text, keep label
+        cleaned = re.sub(r"!\[.*?\]\(.*?\)", "", line)
+        cleaned = re.sub(r"\[(.*?)\]\(.*?\)", r"\1", cleaned)
+        cleaned = cleaned.strip(" -*")
+        if cleaned:
+            return cleaned[:240] + ("..." if len(cleaned) > 240 else "")
+    return None
+
+
 class HuggingFaceProvider(BaseProvider):
     def __init__(self):
         self.api = HfApi()
@@ -61,11 +129,12 @@ class HuggingFaceProvider(BaseProvider):
         self,
         query: str,
         capability: str | None = None,
+        format: str | None = None,
         limit: int = 20,
         sort: str = "downloads",
     ) -> list[dict[str, Any]]:
         # Empty query + sort="downloads" returns the most popular models;
-        # sort="trending_score" returns the currently trending models.
+        # sort="trendingScore" returns the currently trending models.
         models = self.api.list_models(
             search=query,
             limit=limit,
@@ -87,6 +156,13 @@ class HuggingFaceProvider(BaseProvider):
             if not files:
                 continue
 
+            if format and not any(file["format"] == format for file in files):
+                continue
+
+            description = _extract_description(model)
+            if not description:
+                description = _fetch_readme_summary(model.modelId)
+
             results.append({
                 "id": model.modelId,
                 "name": model.modelId.split("/")[-1],
@@ -95,6 +171,7 @@ class HuggingFaceProvider(BaseProvider):
                 "params_billions": None,
                 "context_length": None,
                 "capabilities": inferred_capability,
+                "description": description,
                 "downloads": getattr(model, "downloads", 0) or 0,
                 "likes": getattr(model, "likes", 0) or 0,
                 "files": files,
@@ -123,7 +200,7 @@ class HuggingFaceProvider(BaseProvider):
             download_url = hf_hub_url(repo_id, filename=path, repo_type="model")
             files.append({
                 "filename": filename,
-                "format": _detect_format(filename),
+                "format": _detect_format(filename, repo_id),
                 "quant_method": _parse_quant_method(filename),
                 "size_bytes": size,
                 "download_url": download_url,

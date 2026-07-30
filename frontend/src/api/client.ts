@@ -68,12 +68,14 @@ export async function getLauncherInfo(itemId: number): Promise<LauncherInfo> {
 export async function searchModels(
   query: string,
   capability?: string,
+  format?: string,
   limit = 20,
   sort?: "downloads" | "trendingScore",
 ): Promise<DiscoverResult> {
   const params = new URLSearchParams();
   params.set("query", query);
   if (capability) params.set("capability", capability);
+  if (format) params.set("format", format);
   if (sort) params.set("sort", sort);
   params.set("limit", String(limit));
   const response = await api.get<DiscoverResult>(

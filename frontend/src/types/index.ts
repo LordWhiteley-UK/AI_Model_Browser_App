@@ -69,6 +69,7 @@ export interface ModelFamily {
   params_billions: number | null;
   context_length: number | null;
   capabilities: string;
+  description?: string | null;
   downloads: number;
   likes: number;
   files: ModelFile[];
@@ -77,6 +78,7 @@ export interface ModelFamily {
 export interface DiscoverResult {
   query: string;
   capability: string | null;
+  format: string | null;
   sort?: "downloads" | "trendingScore";
   count: number;
   active_profile: Pick<

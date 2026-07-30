@@ -133,6 +133,7 @@ def get_launcher_options(item_id: int, session: Session = Depends(get_session)):
 def discover_search(
     query: str = Query(default=""),
     capability: str | None = Query(default=None),
+    format: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=50),
     sort: Literal["downloads", "trendingScore"] = Query(default="downloads"),
     session: Session = Depends(get_session),
@@ -146,7 +147,11 @@ def discover_search(
     provider = HuggingFaceProvider()
     try:
         families = provider.search(
-            query=query, capability=capability, limit=limit, sort=sort
+            query=query,
+            capability=capability,
+            format=format,
+            limit=limit,
+            sort=sort,
         )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Hugging Face search failed: {e}")
@@ -160,6 +165,7 @@ def discover_search(
     return {
         "query": query,
         "capability": capability,
+        "format": format,
         "sort": sort,
         "count": len(families),
         "active_profile": {

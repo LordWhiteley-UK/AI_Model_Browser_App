@@ -8,6 +8,7 @@ class BaseProvider(ABC):
         self,
         query: str,
         capability: str | None = None,
+        format: str | None = None,
         limit: int = 20,
         sort: str = "downloads",
     ) -> list[dict[str, Any]]:
