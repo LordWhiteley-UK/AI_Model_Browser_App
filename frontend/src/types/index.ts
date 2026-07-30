@@ -77,6 +77,7 @@ export interface ModelFamily {
 export interface DiscoverResult {
   query: string;
   capability: string | null;
+  sort?: "downloads" | "trendingScore";
   count: number;
   active_profile: Pick<
     HardwareProfile,

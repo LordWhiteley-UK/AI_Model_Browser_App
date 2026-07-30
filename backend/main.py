@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, HTTPException, Query
+from typing import Literal
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -133,6 +134,7 @@ def discover_search(
     query: str = Query(default=""),
     capability: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=50),
+    sort: Literal["downloads", "trendingScore"] = Query(default="downloads"),
     session: Session = Depends(get_session),
 ):
     active_profile = session.exec(
@@ -143,7 +145,9 @@ def discover_search(
 
     provider = HuggingFaceProvider()
     try:
-        families = provider.search(query=query, capability=capability, limit=limit)
+        families = provider.search(
+            query=query, capability=capability, limit=limit, sort=sort
+        )
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Hugging Face search failed: {e}")
 
@@ -156,6 +160,7 @@ def discover_search(
     return {
         "query": query,
         "capability": capability,
+        "sort": sort,
         "count": len(families),
         "active_profile": {
             "id": active_profile.id,

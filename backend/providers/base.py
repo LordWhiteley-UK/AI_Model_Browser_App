@@ -9,5 +9,6 @@ class BaseProvider(ABC):
         query: str,
         capability: str | None = None,
         limit: int = 20,
+        sort: str = "downloads",
     ) -> list[dict[str, Any]]:
         raise NotImplementedError

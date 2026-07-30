@@ -11,10 +11,19 @@ import {
   Heart,
   Loader2,
   Search,
+  TrendingUp,
   Zap,
 } from "lucide-react";
 
 const CAPABILITY_FILTERS = ["All", "LLM", "Vision", "Coding"];
+
+type DiscoverMode = "popular" | "trending" | "search";
+
+const MODES: { id: DiscoverMode; label: string; icon: typeof Zap }[] = [
+  { id: "popular", label: "Popular", icon: Zap },
+  { id: "trending", label: "Trending", icon: TrendingUp },
+  { id: "search", label: "Search", icon: Search },
+];
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -55,6 +64,7 @@ function CompatibilityBadge({
 }
 
 export default function Discover() {
+  const [mode, setMode] = useState<DiscoverMode>("popular");
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [result, setResult] = useState<DiscoverResult | null>(null);
@@ -66,15 +76,25 @@ export default function Discover() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadResult, setDownloadResult] = useState<string | null>(null);
 
+  function setModeAndClear(newMode: DiscoverMode) {
+    setMode(newMode);
+    if (newMode !== "search") setQuery("");
+  }
+
   async function performSearch() {
     setLoading(true);
     setError(null);
     try {
-      const data = await searchModels(
-        query.trim(),
-        activeFilter === "All" ? undefined : activeFilter,
-        20,
-      );
+      const capabilityFilter =
+        activeFilter === "All" ? undefined : activeFilter;
+      let data: DiscoverResult;
+      if (mode === "popular") {
+        data = await searchModels("", capabilityFilter, 20, "downloads");
+      } else if (mode === "trending") {
+        data = await searchModels("", capabilityFilter, 20, "trendingScore");
+      } else {
+        data = await searchModels(query.trim(), capabilityFilter, 20);
+      }
       setResult(data);
       setExpandedFamilies(new Set(data.families.slice(0, 3).map((f) => f.id)));
     } catch (err) {
@@ -86,7 +106,8 @@ export default function Discover() {
 
   useEffect(() => {
     performSearch();
-  }, [activeFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, activeFilter]);
 
   function toggleFamily(id: string) {
     setExpandedFamilies((prev) => {
@@ -131,6 +152,26 @@ export default function Discover() {
       </header>
 
       <section className="mb-6 rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-sm">
+        <div className="mb-4 flex flex-wrap gap-2">
+          {MODES.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setModeAndClear(tab.id)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium capitalize ${
+                  mode === tab.id
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex flex-col gap-4 md:flex-row md:items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
@@ -138,14 +179,21 @@ export default function Discover() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && performSearch()}
-              placeholder="Search Hugging Face, or leave empty to see popular models"
-              className="w-full rounded-lg border border-gray-600 bg-gray-900 pl-9 pr-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+              onKeyDown={(e) =>
+                e.key === "Enter" && mode === "search" && performSearch()
+              }
+              placeholder={
+                mode === "search"
+                  ? "Search Hugging Face (e.g. llama, qwen, mistral)"
+                  : "Switch to Search to type a query"
+              }
+              disabled={mode !== "search"}
+              className="w-full rounded-lg border border-gray-600 bg-gray-900 pl-9 pr-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none disabled:opacity-50"
             />
           </div>
           <button
             onClick={performSearch}
-            disabled={loading}
+            disabled={loading || mode !== "search"}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
           >
             {loading ? (
@@ -202,8 +250,20 @@ export default function Discover() {
       <section className="space-y-4">
         {families.length === 0 && !loading && !error && (
           <div className="rounded-lg border border-dashed border-gray-600 p-12 text-center text-gray-400">
-            <Zap className="mx-auto mb-3 w-10 h-10 text-gray-600" />
-            <p>Showing the most popular Hugging Face model families by downloads.</p>
+            {mode === "popular" ? (
+              <Zap className="mx-auto mb-3 w-10 h-10 text-gray-600" />
+            ) : mode === "trending" ? (
+              <TrendingUp className="mx-auto mb-3 w-10 h-10 text-gray-600" />
+            ) : (
+              <Search className="mx-auto mb-3 w-10 h-10 text-gray-600" />
+            )}
+            <p>
+              {mode === "popular"
+                ? "Showing the most popular Hugging Face model families by downloads."
+                : mode === "trending"
+                  ? "Showing the top trending Hugging Face model families right now."
+                  : "Type a query above and press Enter to search Hugging Face."}
+            </p>
           </div>
         )}
 

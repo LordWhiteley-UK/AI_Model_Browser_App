@@ -69,10 +69,12 @@ export async function searchModels(
   query: string,
   capability?: string,
   limit = 20,
+  sort?: "downloads" | "trendingScore",
 ): Promise<DiscoverResult> {
   const params = new URLSearchParams();
   params.set("query", query);
   if (capability) params.set("capability", capability);
+  if (sort) params.set("sort", sort);
   params.set("limit", String(limit));
   const response = await api.get<DiscoverResult>(
     `/api/discover/search?${params.toString()}`,
