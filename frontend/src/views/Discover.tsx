@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { downloadModelFile, searchModels } from "../api/client";
 import type { DiscoverResult, ModelFamily } from "../types";
+import ModelAuthorIcon from "../components/ModelAuthorIcon";
 import {
   AlertCircle,
   Check,
@@ -379,8 +380,11 @@ function FamilyCard({
                 }`}
               />
             </div>
-            <p className="text-sm text-gray-400 mt-1">
-              {family.author} · {family.capabilities}
+            <p className="text-sm text-gray-400 mt-1 flex items-center gap-1.5">
+              <ModelAuthorIcon author={family.author} />
+              <span>{family.author}</span>
+              <span>·</span>
+              <span>{family.capabilities}</span>
             </p>
             {family.description && (
               <p className="mt-2 text-sm text-gray-300 line-clamp-2">
