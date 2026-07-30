@@ -72,6 +72,7 @@ export interface ModelFamily {
   description?: string | null;
   downloads: number;
   likes: number;
+  created_at: string | null;
   files: ModelFile[];
 }
 

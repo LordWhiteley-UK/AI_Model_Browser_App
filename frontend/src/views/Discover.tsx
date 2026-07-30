@@ -4,6 +4,7 @@ import type { DiscoverResult, ModelFamily } from "../types";
 import ModelAuthorIcon from "../components/ModelAuthorIcon";
 import {
   AlertCircle,
+  Calendar,
   Check,
   Copy,
   Download,
@@ -50,6 +51,20 @@ function formatBytes(bytes: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / 1024 ** i).toFixed(2)} ${units[i]}`;
+}
+
+function formatDate(iso: string | null): string | null {
+  if (!iso) return null;
+  try {
+    const date = new Date(iso);
+    return date.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return null;
+  }
 }
 
 function CompatibilityBadge({
@@ -392,7 +407,13 @@ function FamilyCard({
               </p>
             )}
           </div>
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          <div className="flex items-center gap-4 text-sm text-gray-400 shrink-0">
+            {family.created_at && (
+              <span className="flex items-center gap-1">
+                <Calendar className="w-4 h-4" />
+                {formatDate(family.created_at)}
+              </span>
+            )}
             <span className="flex items-center gap-1">
               <Download className="w-4 h-4" />
               {family.downloads.toLocaleString()}

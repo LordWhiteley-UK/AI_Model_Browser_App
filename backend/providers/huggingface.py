@@ -163,6 +163,13 @@ class HuggingFaceProvider(BaseProvider):
             if not description:
                 description = _fetch_readme_summary(model.modelId)
 
+            created_at = None
+            raw_created = getattr(model, "created_at", None) or getattr(model, "createdAt", None)
+            if isinstance(raw_created, str):
+                created_at = raw_created
+            elif hasattr(raw_created, "isoformat"):
+                created_at = raw_created.isoformat()
+
             results.append({
                 "id": model.modelId,
                 "name": model.modelId.split("/")[-1],
@@ -174,6 +181,7 @@ class HuggingFaceProvider(BaseProvider):
                 "description": description,
                 "downloads": getattr(model, "downloads", 0) or 0,
                 "likes": getattr(model, "likes", 0) or 0,
+                "created_at": created_at,
                 "files": files,
             })
         return results
