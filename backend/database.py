@@ -39,6 +39,28 @@ def _migrate_hardware_profile_columns():
         conn.commit()
 
 
+def _migrate_inventory_columns():
+    """Add columns added after the initial schema creation."""
+    with engine.connect() as conn:
+        columns = {
+            row[1]
+            for row in conn.exec_driver_sql(
+                "PRAGMA table_info(localinventory)"
+            ).fetchall()
+        }
+        if "preferred_runner" not in columns:
+            conn.exec_driver_sql(
+                "ALTER TABLE localinventory ADD COLUMN preferred_runner VARCHAR"
+            )
+        conn.commit()
+
+
+def init_db():
+    SQLModel.metadata.create_all(engine)
+    _migrate_hardware_profile_columns()
+    _migrate_inventory_columns()
+
+
 def get_session():
     with Session(engine) as session:
         yield session

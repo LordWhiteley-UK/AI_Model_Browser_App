@@ -94,6 +94,17 @@ export async function getLauncherInfo(itemId: number): Promise<LauncherInfo> {
   return response.data;
 }
 
+export async function setPreferredRunner(
+  itemId: number,
+  runner: string,
+): Promise<LocalInventoryItem> {
+  const response = await api.post<LocalInventoryItem>(
+    `/api/inventory/${itemId}/runner`,
+    { runner },
+  );
+  return response.data;
+}
+
 export async function searchModels(
   query: string,
   capability?: string,

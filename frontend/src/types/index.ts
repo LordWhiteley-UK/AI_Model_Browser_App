@@ -35,6 +35,7 @@ export interface LocalInventoryItem {
   filename: string;
   detected_format: string;
   detected_capability: string | null;
+  preferred_runner: string | null;
   size_bytes: number;
   added_at: string;
 }
@@ -107,10 +108,12 @@ export interface RunnerOption {
   runner_name: string;
   local_path: string;
   command: string;
+  is_preferred: boolean;
 }
 
 export interface LauncherInfo {
   local_path: string;
   filename: string;
+  preferred_runner: string | null;
   runners: RunnerOption[];
 }

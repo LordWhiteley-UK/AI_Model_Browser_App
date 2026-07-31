@@ -3,6 +3,7 @@ import {
   getInventory,
   getLauncherInfo,
   scanInventory,
+  setPreferredRunner,
 } from "../api/client";
 import type { LauncherInfo, LocalInventoryItem, ScanResult } from "../types";
 import {
@@ -15,14 +16,22 @@ import {
   FolderOpen,
   HardDrive,
   Loader2,
-  Play,
   RefreshCw,
   Search,
+  Settings,
   Terminal,
   X,
 } from "lucide-react";
 
 const CAPABILITY_FILTERS = ["All", "LLM", "Vision", "Coding"];
+
+const RUNNER_OPTIONS = [
+  { id: "llama_cpp", name: "llama.cpp" },
+  { id: "ollama", name: "Ollama" },
+  { id: "lm_studio", name: "LM Studio" },
+  { id: "koboldcpp", name: "KoboldCpp" },
+  { id: "vllm", name: "vLLM" },
+];
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -105,6 +114,19 @@ export default function LocalLibrary() {
       setCopiedRunner(runnerId);
       setTimeout(() => setCopiedRunner(null), 2000);
     });
+  }
+
+  async function handleSetPreferredRunner(itemId: number, runner: string) {
+    try {
+      await setPreferredRunner(itemId, runner);
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId ? { ...item, preferred_runner: runner } : item,
+        ),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to set preferred runner");
+    }
   }
 
   const filteredItems = useMemo(() => {
@@ -268,12 +290,25 @@ export default function LocalLibrary() {
                   <span className="text-sm text-gray-400">
                     {formatBytes(item.size_bytes)}
                   </span>
+                  <select
+                    value={item.preferred_runner || ""}
+                    onChange={(e) => handleSetPreferredRunner(item.id, e.target.value)}
+                    className="rounded-lg border border-gray-600 bg-gray-900 px-2 py-1 text-xs text-white focus:border-blue-500 focus:outline-none"
+                    title="Preferred runner"
+                  >
+                    <option value="">Run with…</option>
+                    {RUNNER_OPTIONS.map((runner) => (
+                      <option key={runner.id} value={runner.id}>
+                        {runner.name}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     onClick={() => openLauncher(item)}
                     className="rounded-lg border border-gray-600 p-2 text-gray-400 hover:text-white hover:border-gray-500"
                     title="Launch with external runner"
                   >
-                    <Play className="w-4 h-4" />
+                    <Terminal className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -312,14 +347,45 @@ export default function LocalLibrary() {
                   {launcherInfo.local_path}
                 </div>
 
+                <div className="mb-4">
+                  <span className="text-sm text-gray-400">Preferred runner:</span>
+                  <select
+                    value={launcherInfo.preferred_runner || ""}
+                    onChange={(e) => {
+                      if (launcherItem) {
+                        handleSetPreferredRunner(launcherItem.id, e.target.value);
+                      }
+                    }}
+                    className="ml-2 rounded-lg border border-gray-600 bg-gray-900 px-2 py-1 text-sm text-white focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">None selected</option>
+                    {RUNNER_OPTIONS.map((runner) => (
+                      <option key={runner.id} value={runner.id}>
+                        {runner.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="space-y-2">
                   {launcherInfo.runners.map((runner) => (
                     <div
                       key={runner.id}
-                      className="rounded-lg border border-gray-700 bg-gray-900 p-3"
+                      className={`rounded-lg border p-3 ${
+                        runner.is_preferred
+                          ? "border-blue-500 bg-blue-900/20"
+                          : "border-gray-700 bg-gray-900"
+                      }`}
                     >
                       <div className="mb-1 flex items-center justify-between">
-                        <span className="font-medium">{runner.name}</span>
+                        <span className="font-medium flex items-center gap-2">
+                          {runner.name}
+                          {runner.is_preferred && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-900/40 px-2 py-0.5 text-xs text-blue-300">
+                              <Settings className="w-3 h-3" /> Preferred
+                            </span>
+                          )}
+                        </span>
                         <button
                           onClick={() => copyCommand(runner.command, runner.id)}
                           className="inline-flex items-center gap-1 rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-500"

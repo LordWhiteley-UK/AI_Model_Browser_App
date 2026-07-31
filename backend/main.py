@@ -98,6 +98,10 @@ class CreateProfileRequest(BaseModel):
     is_unified_memory: bool = False
 
 
+class SetPreferredRunnerRequest(BaseModel):
+    runner: str
+
+
 @app.post("/api/hardware/profiles")
 def create_profile(
     request: CreateProfileRequest, session: Session = Depends(get_session)
@@ -159,22 +163,43 @@ def get_inventory_item(item_id: int, session: Session = Depends(get_session)):
     return item
 
 
+@app.post("/api/inventory/{item_id}/runner")
+def set_preferred_runner(
+    item_id: int,
+    request: SetPreferredRunnerRequest,
+    session: Session = Depends(get_session),
+):
+    item = session.get(LocalInventory, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+    if request.runner not in SUPPORTED_RUNNERS:
+        raise HTTPException(status_code=400, detail="Unsupported runner")
+    item.preferred_runner = request.runner
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return item
+
+
 @app.get("/api/inventory/{item_id}/launch")
 def get_launcher_options(item_id: int, session: Session = Depends(get_session)):
     item = session.get(LocalInventory, item_id)
     if not item:
         raise HTTPException(status_code=404, detail="Inventory item not found")
+    runners = []
+    for key, value in SUPPORTED_RUNNERS.items():
+        runner = build_launcher_command(key, item.local_path)
+        runners.append({
+            "id": key,
+            "name": value,
+            "is_preferred": item.preferred_runner == key,
+            **runner,
+        })
     return {
         "local_path": item.local_path,
         "filename": item.filename,
-        "runners": [
-            {
-                "id": key,
-                "name": value,
-                **build_launcher_command(key, item.local_path),
-            }
-            for key, value in SUPPORTED_RUNNERS.items()
-        ],
+        "preferred_runner": item.preferred_runner,
+        "runners": runners,
     }
 
 
