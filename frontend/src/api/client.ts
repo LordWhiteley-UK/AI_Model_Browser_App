@@ -1,5 +1,6 @@
 import axios from "axios";
 import type {
+  ChatMessage,
   DetectedRunner,
   DiscoverResult,
   DownloadJob,
@@ -205,4 +206,73 @@ export async function updateDownloadSettings(
     bandwidth_cap_mbps: bandwidthCapMbps,
   });
   return response.data;
+}
+
+
+export function streamChat(
+  inventoryItemId: number,
+  runner: string,
+  prompt: string,
+  onMessage: (messages: ChatMessage[]) => void,
+  onError: (error: string) => void,
+  onDone: () => void,
+): AbortController {
+  const controller = new AbortController();
+  const responseContent: string[] = [];
+
+  fetch(`${API_BASE}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      inventory_item_id: inventoryItemId,
+      runner,
+      prompt,
+    }),
+    signal: controller.signal,
+  }).then(async (response) => {
+    if (!response.ok || !response.body) {
+      const text = await response.text();
+      onError(text || `HTTP ${response.status}`);
+      onDone();
+      return;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const data = line.replace(/^data: /, "").trim();
+        if (!data) continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.chunk) {
+            responseContent.push(parsed.chunk);
+            onMessage([
+              { role: "user", content: prompt },
+              { role: "assistant", content: responseContent.join("") },
+            ]);
+          } else if (parsed.error) {
+            onError(parsed.error);
+          } else if (parsed.done) {
+            onDone();
+          }
+        } catch {
+          // Ignore malformed SSE lines.
+        }
+      }
+    }
+
+    onDone();
+  });
+
+  return controller;
 }

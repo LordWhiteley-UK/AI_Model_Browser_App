@@ -10,12 +10,14 @@ import {
   Globe,
   HardDrive,
   Loader2,
+  MessageSquare,
   ScrollText,
   Server,
   Settings,
   Trash2,
   X,
 } from "lucide-react";
+import Chat from "./views/Chat";
 import Discover from "./views/Discover";
 import Downloads from "./views/Downloads";
 import HardwareProfiles from "./views/HardwareProfiles";
@@ -148,7 +150,13 @@ function App() {
   const [showLogs, setShowLogs] = useState(false);
   const [forceContinue, setForceContinue] = useState(false);
   const [view, setView] = useState<
-    "dashboard" | "hardware" | "library" | "discover" | "downloads" | "runners"
+    | "dashboard"
+    | "hardware"
+    | "library"
+    | "discover"
+    | "downloads"
+    | "runners"
+    | "chat"
   >("dashboard");
   const startTimeRef = useRef(Date.now());
   const { logs, clear } = useBackendLogs(500);
@@ -199,6 +207,7 @@ function App() {
     { id: "library", label: "Library" },
     { id: "hardware", label: "Hardware" },
     { id: "runners", label: "Runners" },
+    { id: "chat", label: "Chat" },
   ];
 
   const nav = (
@@ -281,6 +290,16 @@ function App() {
       <div className="min-h-screen bg-gray-900 text-gray-100">
         {nav}
         <RunnerSettings />
+        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
+      </div>
+    );
+  }
+
+  if (view === "chat") {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100">
+        {nav}
+        <Chat />
         {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
       </div>
     );
@@ -415,6 +434,22 @@ function App() {
             </div>
             <p className="text-gray-400">
               Detect installed runners and configure shared model folders.
+            </p>
+          </button>
+
+          <button
+            onClick={() => setView("chat")}
+            className="rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-sm text-left hover:bg-gray-800/80 transition-colors"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-blue-400" />
+                Test Chat
+              </h2>
+              <Activity className="h-5 w-5 text-blue-400" />
+            </div>
+            <p className="text-gray-400">
+              Prompt a loaded model through Ollama, llama.cpp, or LM Studio.
             </p>
           </button>
         </section>

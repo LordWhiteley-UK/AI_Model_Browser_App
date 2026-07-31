@@ -1,4 +1,6 @@
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.responses import StreamingResponse
+import json
 import subprocess
 from typing import Literal
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +18,7 @@ from services.hardware_detector import detect_system_specs
 from services.launcher import SUPPORTED_RUNNERS, build_launcher_command
 from services.local_scanner import scan_folders
 from services.runner_detector import apply_overrides, detect_all_runners, detect_ollama
+from services.chat_service import chat_stream
 from models.runner_settings import RunnerPathOverride
 
 download_manager = DownloadManager()
@@ -448,6 +451,36 @@ async def import_to_ollama(
         raise HTTPException(status_code=500, detail=f"Ollama import failed: {e}")
 
     return {"imported": True, "runner": "ollama", "model": name}
+
+
+class ChatRequest(BaseModel):
+    inventory_item_id: int
+    runner: str
+    prompt: str
+
+
+@app.post("/api/chat")
+async def chat_endpoint(request: ChatRequest):
+    async def event_stream():
+        try:
+            async for chunk in chat_stream(
+                request.inventory_item_id, request.runner, request.prompt
+            ):
+                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 if __name__ == "__main__":

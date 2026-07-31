@@ -119,6 +119,11 @@ export interface DownloadSettings {
   bandwidth_cap_mbps: number | null;
 }
 
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface RunnerOption {
   id: string;
   name: string;
