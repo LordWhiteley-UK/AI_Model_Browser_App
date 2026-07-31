@@ -20,6 +20,7 @@ This file records the features that have already been built, what is currently i
 | — | **Author/Org Brand Icons** | ✅ Complete | Simple-icons brand logos (Google, NVIDIA, Meta, Mistral, Qwen, Anthropic, DeepSeek, etc.) on model cards. |
 | — | **Model Publication Date** | ✅ Complete | `created_at` shown on each Discover model card with Calendar icon. |
 | 9 | **Local Library Runner Commands** | ✅ Complete | Generate ready-to-run commands for Ollama, llama.cpp, LM Studio, KoboldCpp, vLLM; store preferred runner per file; copy-to-clipboard in launcher modal. |
+| 10 | **Standalone Tauri Desktop Build** | ✅ Complete | Tauri v2 macOS `.app` bundle with PyInstaller backend sidecar, auto-spawn/kill lifecycle, env-configured SQLite DB. |
 
 ## Remaining Planned Milestones (from `PROJECT_PLAN.md`)
 
@@ -27,9 +28,8 @@ This file records the features that have already been built, what is currently i
 | :- | :--------- | :----- | :----------- |
 | 8 | **Download Progress & Queue** | ✅ Complete | In-memory async download job queue with progress/ETA/speed, cancel and delete endpoints, Downloads view with progress bars and status badges. |
 | 9 | **Local Library Runner Commands** | ✅ Complete | Generate ready-to-run commands for Ollama, llama.cpp, LM Studio, KoboldCpp, vLLM; store preferred runner per file; copy-to-clipboard in launcher modal. |
+| 10 | **Standalone Tauri Desktop Build** | ✅ Complete | Bundle React + Python backend into a single `.app`/`.exe`; manage backend sidecar lifecycle. |
 | 11 | **Runner Detection & Shared Model Folder** | ✅ Complete | Detect Ollama/LM Studio/llama.cpp, Runner Settings view with manual overrides, download-to-LM-Studio folder move, Ollama Modelfile + `ollama create` import, Library import button. |
-| 10 | **Standalone Tauri Desktop Build** | 🔲 Not started | Bundle React + Python backend into a single `.app`/`.exe`; manage backend sidecar lifecycle. |
-| 11 | **Runner Detection & Shared Model Folder** | 🔲 Not started | Auto-detect installed runners (Ollama, LM Studio, llama.cpp) and their model storage locations; write downloads directly into LM Studio's configured folder; auto-generate Ollama `Modelfile` + `ollama create` import so downloaded GGUFs register as real Ollama models without manual steps. See note below on why this can't be one universal shared folder. |
 
 ### Why Milestone 11 isn't a single shared folder
 - **llama.cpp** has no library concept — it takes a direct file path, so any shared folder already works with zero integration.
