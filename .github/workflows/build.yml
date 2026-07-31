@@ -1,0 +1,117 @@
+name: Build AI Model Browser
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-backend-sidecar:
+    name: Build backend sidecar (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            triple: aarch64-apple-darwin
+          - os: windows-latest
+            triple: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build sidecar
+        run: python backend/build_sidecar.py
+
+      - name: Upload sidecar binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-sidecar-${{ matrix.triple }}
+          path: src-tauri/binaries/backend-${{ matrix.triple }}*
+
+  build-tauri:
+    name: Build Tauri app (${{ matrix.platform }})
+    needs: build-backend-sidecar
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            triple: aarch64-apple-darwin
+          - platform: windows-latest
+            triple: x86_64-pc-windows-msvc
+          - platform: ubuntu-latest
+            triple: x86_64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Download backend sidecar
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-sidecar-${{ matrix.triple }}
+          path: src-tauri/binaries
+
+      - name: Set bundle targets
+        run: |
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            jq '.bundle.targets = ["app", "dmg"]' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          elif [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            jq '.bundle.targets = ["app", "nsis", "msi"]' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          else
+            jq '.bundle.targets = ["app", "deb", "appimage"]' src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          fi
+          mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+        shell: bash
+
+      - name: Build Tauri app
+        run: npm run tauri -- build
+        working-directory: frontend
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-bundle-${{ matrix.platform }}
+          path: |
+            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.AppImage
