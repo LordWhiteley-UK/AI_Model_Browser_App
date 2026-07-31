@@ -39,37 +39,24 @@ This file records the features that have already been built, what is currently i
 
 ## Recommended Next Milestones
 
-### Immediate next step: **Milestone 10 — Standalone Tauri Desktop Build**
+All original milestones from `PROJECT_PLAN.md` are complete. The next steps are polish and cross-platform work, not new numbered milestones.
+
+### Immediate next step: **Cross-platform desktop builds**
 Why this first:
-- This is the last remaining planned milestone; all core app features (discover, hardware, library, downloads, runners) are now in place.
-- It turns the local dev stack into a real desktop application.
+- The macOS `.app` bundle is already working. Windows and Linux builds are the next logical step to make the app usable everywhere.
 
 What to build:
-1. Configure `src-tauri/` to embed the Vite frontend and start the Python backend as a sidecar.
-2. Package the backend Python environment (venv or PyInstaller binary).
-3. Build and smoke-test the macOS `.app` bundle, then document Windows/Linux steps.
+1. Build a Windows `.exe` installer (NSIS or MSI) using Tauri.
+2. Build a Linux AppImage / `.deb` bundle using Tauri.
+3. Add CI scripts or local documentation for repeatable builds on each platform.
+4. Handle platform-specific paths (e.g., `%APPDATA%`, `~/.config`, `~/Library/Application Support`) for the bundled backend data directory.
 
-### Optional next (not in original plan): **Milestone 10 follow-up polish**
-- Auto-start backend on app launch, health retry UX, tray icon, update checks.
-Why here:
-- Builds directly on the runner commands (M9) and download queue (M8) — once the app manages downloads and knows the runner target, it can go one step further and register the file with that runner automatically.
-- Doesn't require the desktop build; the existing local backend can already probe installed paths.
-
-What to build:
-1. `RunnerDetector` service: check `PATH` / common install directories (Windows & macOS) for `ollama`, LM Studio, and `llama-server`/`llama-cli` binaries.
-2. Read/write LM Studio's model directory config; on download, place GGUF/MLX files directly into its expected folder structure.
-3. Add an "Import to Ollama" action that writes a `Modelfile` next to the downloaded GGUF and shells out to `ollama create`.
-4. Settings panel showing detected runners, their model paths, and manual override fields for anything not auto-detected.
-
-### Final major step: **Milestone 10 — Standalone Tauri Desktop Build**
-Why last:
-- This is the largest milestone and depends on a working Rust toolchain and `cargo`.
-- It only makes sense once the app features are complete enough that a standalone build is worth shipping.
-
-What to build:
-1. Configure `src-tauri/` to embed the Vite frontend and start the Python backend as a sidecar.
-2. Package the backend Python environment (venv or PyInstaller binary).
-3. Build and smoke-test the macOS `.app` bundle, then document Windows/Linux steps.
+### Follow-up polish (no milestone number)
+- Add a startup health-retry UX so the frontend waits gracefully for the backend sidecar.
+- Add system tray icon and quit/relaunch actions.
+- Add automatic update checks.
+- Add a first-run onboarding screen.
+- Improve bundled backend logging and a way to view logs from the UI.
 
 ## Optional Nice-to-Haves (not in `PROJECT_PLAN.md`)
 
