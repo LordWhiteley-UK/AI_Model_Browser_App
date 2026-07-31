@@ -349,6 +349,8 @@ def get_detected_runners(session: Session = Depends(get_session)):
 
 
 class RunnerPathRequest(BaseModel):
+    model_config = {"protected_namespaces": ()}
+
     binary_path: str | None = None
     model_path: str | None = None
 
@@ -430,6 +432,12 @@ async def import_to_ollama(
 
 
 if __name__ == "__main__":
+    import argparse
     import uvicorn
 
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8000)
+    args = parser.parse_args()
+
+    uvicorn.run(app, host=args.host, port=args.port, reload=False)

@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from sqlmodel import SQLModel, Session, create_engine
 
 from models.hardware import HardwareProfile
@@ -6,7 +9,19 @@ from models.model_family import ModelFamily
 from models.model_file import ModelFile
 from models.runner_settings import RunnerPathOverride
 
-DATABASE_URL = "sqlite:///models.db"
+DEFAULT_DB_DIR = Path.home() / ".ai_model_browser"
+DEFAULT_DB_PATH = DEFAULT_DB_DIR / "models.db"
+
+DATABASE_URL = os.environ.get(
+    "AI_MODEL_BROWSER_DB_URL",
+    f"sqlite:///{DEFAULT_DB_PATH}",
+)
+
+
+def _ensure_db_dir():
+    if DATABASE_URL.startswith("sqlite:///"):
+        path = Path(DATABASE_URL.replace("sqlite:///", ""))
+        path.parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(
     DATABASE_URL, echo=False, connect_args={"check_same_thread": False}
@@ -57,6 +72,7 @@ def _migrate_inventory_columns():
 
 
 def init_db():
+    _ensure_db_dir()
     SQLModel.metadata.create_all(engine)
     _migrate_hardware_profile_columns()
     _migrate_inventory_columns()

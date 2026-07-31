@@ -4,9 +4,13 @@ __pycache__/
 *$py.class
 *.so
 backend/venv/
+venv-build/
+backend/venv-build/
 *.egg-info/
 .env
 backend/models.db
+backend/build/
+*.spec
 
 # Node / frontend
 frontend/node_modules/
@@ -19,7 +23,12 @@ yarn-error.log*
 
 # Tauri / Rust
 src-tauri/target/
+src-tauri/binaries/
+src-tauri/gen/
 Cargo.lock
+
+# Temp
+tmp/
 
 # OS
 .DS_Store
