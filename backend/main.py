@@ -326,6 +326,25 @@ def delete_download_job(job_id: str):
     return {"deleted": True}
 
 
+class DownloadSettingsRequest(BaseModel):
+    bandwidth_cap_mbps: float | None = None
+
+
+@app.get("/api/download/settings")
+def get_download_settings():
+    return download_manager.get_settings().to_dict()
+
+
+@app.put("/api/download/settings")
+def update_download_settings(request: DownloadSettingsRequest):
+    bps = (
+        request.bandwidth_cap_mbps * 1_000_000
+        if request.bandwidth_cap_mbps is not None and request.bandwidth_cap_mbps > 0
+        else None
+    )
+    return download_manager.set_bandwidth_cap(bps).to_dict()
+
+
 @app.get("/api/runners")
 def list_runners():
     return {"runners": SUPPORTED_RUNNERS}

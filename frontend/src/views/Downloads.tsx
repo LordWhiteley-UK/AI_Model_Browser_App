@@ -3,6 +3,8 @@ import {
   cancelDownloadJob,
   deleteDownloadJob,
   getDownloadJobs,
+  getDownloadSettings,
+  updateDownloadSettings,
 } from "../api/client";
 import type { DownloadJob } from "../types";
 import {
@@ -14,6 +16,8 @@ import {
   FolderOpen,
   Loader2,
   Pause,
+  Save,
+  Settings2,
   Trash2,
   Wrench,
   X,
@@ -64,6 +68,8 @@ export default function Downloads() {
   const [jobs, setJobs] = useState<DownloadJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [settingsCap, setSettingsCap] = useState<number | "">("");
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   async function loadJobs() {
     try {
@@ -77,8 +83,18 @@ export default function Downloads() {
     }
   }
 
+  async function loadSettings() {
+    try {
+      const settings = await getDownloadSettings();
+      setSettingsCap(settings.bandwidth_cap_mbps ?? "");
+    } catch {
+      // Non-critical; leave default empty.
+    }
+  }
+
   useEffect(() => {
     loadJobs();
+    loadSettings();
     const interval = setInterval(loadJobs, 1000);
     return () => clearInterval(interval);
   }, []);
@@ -99,6 +115,22 @@ export default function Downloads() {
       await loadJobs();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to clear completed downloads");
+    }
+  }
+
+  async function handleSaveCap() {
+    const value = settingsCap === "" ? null : Number(settingsCap);
+    if (value !== null && (isNaN(value) || value < 0)) {
+      setError("Bandwidth cap must be a positive number");
+      return;
+    }
+    try {
+      await updateDownloadSettings(value);
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 2000);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update settings");
     }
   }
 
@@ -128,15 +160,44 @@ export default function Downloads() {
           <span className="text-gray-400">Completed:</span>
           <span className="font-medium text-green-400">{completedCount}</span>
         </div>
-        {completedCount > 0 && (
-          <button
-            onClick={clearCompleted}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
-          >
-            <Trash2 className="w-4 h-4" />
-            Clear completed
-          </button>
-        )}
+
+        <div className="ml-auto flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-gray-400" />
+            <span className="text-sm text-gray-400">Cap:</span>
+            <input
+              type="number"
+              min={0}
+              step={0.1}
+              value={settingsCap}
+              onChange={(e) => setSettingsCap(e.target.value === "" ? "" : Number(e.target.value))}
+              placeholder="∞"
+              className="w-24 rounded-lg border border-gray-600 bg-gray-900 px-2 py-1 text-sm text-white placeholder-gray-600 focus:border-blue-500 focus:outline-none"
+            />
+            <span className="text-sm text-gray-400">MB/s</span>
+            <button
+              onClick={handleSaveCap}
+              className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm ${
+                settingsSaved
+                  ? "bg-green-900/40 text-green-300"
+                  : "bg-blue-900/40 text-blue-300 hover:bg-blue-900/60"
+              }`}
+            >
+              {settingsSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+              {settingsSaved ? "Saved" : "Save"}
+            </button>
+          </div>
+
+          {completedCount > 0 && (
+            <button
+              onClick={clearCompleted}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-600 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
+            >
+              <Trash2 className="w-4 h-4" />
+              Clear completed
+            </button>
+          )}
+        </div>
       </section>
 
       {error && (
@@ -169,6 +230,11 @@ export default function Downloads() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-medium truncate">{job.filename}</p>
                       {statusBadge(job.status)}
+                      {job.resumed && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-900/40 px-2 py-0.5 text-xs font-medium text-purple-300">
+                          Resumed
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-xs text-gray-500 truncate">
                       {job.url}

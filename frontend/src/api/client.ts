@@ -3,6 +3,7 @@ import type {
   DetectedRunner,
   DiscoverResult,
   DownloadJob,
+  DownloadSettings,
   HardwareProfile,
   HealthStatus,
   LauncherInfo,
@@ -188,4 +189,20 @@ export async function cancelDownloadJob(jobId: string): Promise<DownloadJob> {
 
 export async function deleteDownloadJob(jobId: string): Promise<void> {
   await api.delete(`/api/download/jobs/${jobId}`);
+}
+
+
+export async function getDownloadSettings(): Promise<DownloadSettings> {
+  const response = await api.get<DownloadSettings>("/api/download/settings");
+  return response.data;
+}
+
+
+export async function updateDownloadSettings(
+  bandwidthCapMbps: number | null,
+): Promise<DownloadSettings> {
+  const response = await api.put<DownloadSettings>("/api/download/settings", {
+    bandwidth_cap_mbps: bandwidthCapMbps,
+  });
+  return response.data;
 }

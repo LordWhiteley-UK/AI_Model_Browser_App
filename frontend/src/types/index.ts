@@ -111,15 +111,12 @@ export interface DownloadJob {
   runner_target: string | null;
   source_family_id: string | null;
   runner_action_result: Record<string, unknown> | null;
+  resumed: boolean;
 }
 
-export interface DownloadResult {
-  url: string;
-  local_path: string;
-  filename: string;
-  size_bytes: number;
-  resumed: boolean;
-  total_bytes: number | null;
+export interface DownloadSettings {
+  bandwidth_cap_bps: number | null;
+  bandwidth_cap_mbps: number | null;
 }
 
 export interface RunnerOption {

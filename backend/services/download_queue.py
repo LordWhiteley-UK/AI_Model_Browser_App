@@ -13,6 +13,53 @@ from services.runner_integration import import_to_ollama, move_to_lm_studio
 DEFAULT_DOWNLOAD_DIR = Path.home() / "AI_Model_Browser_Downloads"
 
 
+class TokenBucket:
+    """Simple token bucket for per-second bandwidth limiting."""
+
+    def __init__(self, rate_bps: float | None):
+        self.rate_bps = rate_bps
+        self.tokens: float = 0.0
+        self.last_update = time.monotonic()
+        self._lock = asyncio.Lock()
+
+    def _replenish(self) -> None:
+        if not self.rate_bps:
+            return
+        now = time.monotonic()
+        elapsed = now - self.last_update
+        self.tokens = min(self.rate_bps, self.tokens + self.rate_bps * elapsed)
+        self.last_update = now
+
+    async def consume(self, bytes_count: int) -> None:
+        if not self.rate_bps or bytes_count <= 0:
+            return
+        async with self._lock:
+            self._replenish()
+            if self.tokens >= bytes_count:
+                self.tokens -= bytes_count
+                return
+            needed = bytes_count - self.tokens
+            wait_seconds = needed / self.rate_bps
+            self.tokens = 0
+            self.last_update = time.monotonic() + wait_seconds
+        await asyncio.sleep(wait_seconds)
+
+
+@dataclass
+class DownloadSettings:
+    bandwidth_cap_bps: float | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "bandwidth_cap_bps": self.bandwidth_cap_bps,
+            "bandwidth_cap_mbps": (
+                round(self.bandwidth_cap_bps / 1_000_000, 2)
+                if self.bandwidth_cap_bps
+                else None
+            ),
+        }
+
+
 def _ensure_dir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
@@ -51,6 +98,7 @@ class DownloadJob:
     updated_at: float = field(default_factory=time.time)
     local_path: str | None = None
     runner_action_result: dict[str, Any] | None = None
+    resumed: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -72,6 +120,7 @@ class DownloadJob:
             "runner_target": self.runner_target,
             "source_family_id": self.source_family_id,
             "runner_action_result": self.runner_action_result,
+            "resumed": self.resumed,
         }
 
 
@@ -82,6 +131,16 @@ class DownloadManager:
         self._tasks: dict[str, asyncio.Task] = {}
         self._cancel_events: dict[str, asyncio.Event] = {}
         self._lock = asyncio.Lock()
+        self._settings = DownloadSettings()
+        self._bucket = TokenBucket(None)
+
+    def get_settings(self) -> DownloadSettings:
+        return self._settings
+
+    def set_bandwidth_cap(self, bps: float | None) -> DownloadSettings:
+        self._settings.bandwidth_cap_bps = bps
+        self._bucket.rate_bps = bps
+        return self._settings
 
     async def start_download(
         self,
@@ -133,7 +192,9 @@ class DownloadManager:
         start_byte = 0
         if out_path.exists():
             start_byte = out_path.stat().st_size
-            headers["Range"] = f"bytes={start_byte}-"
+            if start_byte > 0:
+                headers["Range"] = f"bytes={start_byte}-"
+                job.resumed = True
 
         job.status = "running"
         job.progress_bytes = start_byte
@@ -146,11 +207,24 @@ class DownloadManager:
                     if response.status_code not in (200, 206):
                         raise RuntimeError(f"Download failed: HTTP {response.status_code}")
 
-                    total_header = response.headers.get("Content-Length")
-                    if total_header:
-                        total = int(total_header) + start_byte
+                    if response.status_code == 206:
+                        range_header = response.headers.get("Content-Range", "")
+                        if "/" in range_header:
+                            try:
+                                total = int(range_header.split("/")[-1])
+                            except ValueError:
+                                total = None
+                        else:
+                            total = None
                     else:
-                        total = None
+                        total_header = response.headers.get("Content-Length")
+                        total = int(total_header) if total_header else None
+                        if start_byte > 0:
+                            # Server ignored Range; restart from scratch.
+                            job.resumed = False
+                            start_byte = 0
+                            job.progress_bytes = 0
+
                     job.total_bytes = total
 
                     mode = "ab" if start_byte else "wb"
@@ -163,13 +237,14 @@ class DownloadManager:
                                 return
 
                             if chunk:
+                                await self._bucket.consume(len(chunk))
                                 f.write(chunk)
                                 downloaded += len(chunk)
                                 job.progress_bytes = downloaded
                                 now = time.time()
                                 elapsed = now - start_time
                                 if elapsed > 0:
-                                    job.speed_bps = downloaded / elapsed
+                                    job.speed_bps = (downloaded - start_byte) / elapsed
                                 if job.total_bytes and job.speed_bps:
                                     remaining = job.total_bytes - downloaded
                                     job.eta_seconds = remaining / job.speed_bps
