@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { downloadModelFile, searchModels } from "../api/client";
+import { searchModels, startDownloadJob } from "../api/client";
 import type { DiscoverResult, ModelFamily } from "../types";
 import ModelAuthorIcon from "../components/ModelAuthorIcon";
 import {
@@ -180,8 +180,11 @@ export default function Discover() {
     setDownloadingId(id);
     setDownloadResult(null);
     try {
-      const res = await downloadModelFile(url, filename);
-      setDownloadResult(`Saved ${res.filename} (${formatBytes(res.size_bytes)})`);
+      const job = await startDownloadJob(url, filename);
+      setDownloadResult(
+        `Queued ${job.filename}. Track progress in the Downloads page.`,
+      );
+      setTimeout(() => setDownloadResult(null), 4000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Download failed");
     } finally {

@@ -1,7 +1,7 @@
 import axios from "axios";
 import type {
   DiscoverResult,
-  DownloadResult,
+  DownloadJob,
   HardwareProfile,
   HealthStatus,
   LauncherInfo,
@@ -124,13 +124,34 @@ export async function searchModels(
   return response.data;
 }
 
-export async function downloadModelFile(
+export async function startDownloadJob(
   url: string,
   filename: string,
-): Promise<DownloadResult> {
-  const response = await api.post<DownloadResult>("/api/download", {
+  destination?: string,
+): Promise<DownloadJob> {
+  const response = await api.post<DownloadJob>("/api/download/jobs", {
     url,
     filename,
+    destination,
   });
   return response.data;
+}
+
+export async function getDownloadJobs(): Promise<DownloadJob[]> {
+  const response = await api.get<{ jobs: DownloadJob[] }>("/api/download/jobs");
+  return response.data.jobs;
+}
+
+export async function getDownloadJob(jobId: string): Promise<DownloadJob> {
+  const response = await api.get<DownloadJob>(`/api/download/jobs/${jobId}`);
+  return response.data;
+}
+
+export async function cancelDownloadJob(jobId: string): Promise<DownloadJob> {
+  const response = await api.post<DownloadJob>(`/api/download/jobs/${jobId}/cancel`);
+  return response.data;
+}
+
+export async function deleteDownloadJob(jobId: string): Promise<void> {
+  await api.delete(`/api/download/jobs/${jobId}`);
 }

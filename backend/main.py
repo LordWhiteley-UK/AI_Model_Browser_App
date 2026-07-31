@@ -10,10 +10,12 @@ from models.inventory import LocalInventory
 from providers.huggingface import HuggingFaceProvider
 from seed import ensure_active_profile, seed_profiles
 from services.compatibility_engine import score_compatibility
-from services.downloader import download_file
+from services.download_queue import DownloadManager
 from services.hardware_detector import detect_system_specs
 from services.launcher import SUPPORTED_RUNNERS, build_launcher_command
 from services.local_scanner import scan_folders
+
+download_manager = DownloadManager()
 
 app = FastAPI(title="AI Model Browser API", version="0.1.0")
 
@@ -260,15 +262,59 @@ class DownloadRequest(BaseModel):
 
 
 @app.post("/api/download")
-def download_model_file(request: DownloadRequest):
+async def download_model_file(request: DownloadRequest):
     try:
-        return download_file(
+        job = await download_manager.start_download(
             url=request.url,
             filename=request.filename,
             destination=request.destination,
         )
+        return job.to_dict()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Download failed: {e}")
+
+
+@app.post("/api/download/jobs")
+async def create_download_job(request: DownloadRequest):
+    try:
+        job = await download_manager.start_download(
+            url=request.url,
+            filename=request.filename,
+            destination=request.destination,
+        )
+        return job.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Download failed: {e}")
+
+
+@app.get("/api/download/jobs")
+def list_download_jobs():
+    return {"jobs": [job.to_dict() for job in download_manager.list_jobs()]}
+
+
+@app.get("/api/download/jobs/{job_id}")
+def get_download_job(job_id: str):
+    job = download_manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Download job not found")
+    return job.to_dict()
+
+
+@app.post("/api/download/jobs/{job_id}/cancel")
+async def cancel_download_job(job_id: str):
+    job = await download_manager.cancel_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Download job not found")
+    return job.to_dict()
+
+
+@app.delete("/api/download/jobs/{job_id}")
+def delete_download_job(job_id: str):
+    job = download_manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Download job not found")
+    del download_manager._jobs[job_id]
+    return {"deleted": True}
 
 
 @app.get("/api/runners")

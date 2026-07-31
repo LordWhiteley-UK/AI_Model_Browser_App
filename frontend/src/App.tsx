@@ -5,11 +5,13 @@ import {
   Activity,
   Archive,
   Cpu,
+  Download,
   Globe,
   HardDrive,
   Server,
 } from "lucide-react";
 import Discover from "./views/Discover";
+import Downloads from "./views/Downloads";
 import HardwareProfiles from "./views/HardwareProfiles";
 import LocalLibrary from "./views/LocalLibrary";
 
@@ -18,7 +20,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<
-    "dashboard" | "hardware" | "library" | "discover"
+    "dashboard" | "hardware" | "library" | "discover" | "downloads"
   >("dashboard");
 
   useEffect(() => {
@@ -52,6 +54,7 @@ function App() {
   const navLinks: Array<{ id: typeof view; label: string }> = [
     { id: "dashboard", label: "Dashboard" },
     { id: "discover", label: "Discover" },
+    { id: "downloads", label: "Downloads" },
     { id: "library", label: "Library" },
     { id: "hardware", label: "Hardware" },
   ];
@@ -103,6 +106,15 @@ function App() {
       <div className="min-h-screen bg-gray-900 text-gray-100">
         {nav}
         <Discover />
+      </div>
+    );
+  }
+
+  if (view === "downloads") {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100">
+        {nav}
+        <Downloads />
       </div>
     );
   }
@@ -204,6 +216,22 @@ function App() {
             <p className="text-gray-400">
               Scan folders and manage local GGUF, Safetensors, ONNX, and MLX
               files.
+            </p>
+          </button>
+
+          <button
+            onClick={() => setView("downloads")}
+            className="rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-sm text-left hover:bg-gray-800/80 transition-colors"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Download className="w-5 h-5 text-blue-400" />
+                Downloads
+              </h2>
+              <Activity className="w-5 h-5 text-blue-400" />
+            </div>
+            <p className="text-gray-400">
+              Track queued and active model downloads with progress and ETA.
             </p>
           </button>
         </section>

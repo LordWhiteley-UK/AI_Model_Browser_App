@@ -25,7 +25,7 @@ This file records the features that have already been built, what is currently i
 
 | # | Milestone | Status | What it adds |
 | :- | :--------- | :----- | :----------- |
-| 8 | **Download Progress & Queue** | 🔲 Not started | Background downloads, progress bars/ETA, cancel buttons, download queue panel. |
+| 8 | **Download Progress & Queue** | ✅ Complete | In-memory async download job queue with progress/ETA/speed, cancel and delete endpoints, Downloads view with progress bars and status badges. |
 | 10 | **Standalone Tauri Desktop Build** | 🔲 Not started | Bundle React + Python backend into a single `.app`/`.exe`; manage backend sidecar lifecycle. |
 | 11 | **Runner Detection & Shared Model Folder** | 🔲 Not started | Auto-detect installed runners (Ollama, LM Studio, llama.cpp) and their model storage locations; write downloads directly into LM Studio's configured folder; auto-generate Ollama `Modelfile` + `ollama create` import so downloaded GGUFs register as real Ollama models without manual steps. See note below on why this can't be one universal shared folder. |
 
@@ -37,17 +37,18 @@ This file records the features that have already been built, what is currently i
 
 ## Recommended Next Milestones
 
-### Immediate next step: **Milestone 8 — Download Progress & Queue**
+### Immediate next step: **Milestone 11 — Runner Detection & Shared Model Folder**
 Why this first:
-- Downloads already work, but they are synchronous and silent.
-- Adding a queue means introducing background tasks (threading or asyncio queue) and a polling/WebSocket endpoint, which is more invasive than runner commands.
+- Builds directly on the runner commands (M9) and download queue (M8) — once the app manages downloads and knows the runner target, it can go one step further and register the file with that runner automatically.
+- Doesn't require the desktop build; the existing local backend can already probe installed paths.
 
 What to build:
-1. Replace the synchronous `download_file` service with an in-memory or SQLite-backed job queue.
-2. Add `GET /api/download/jobs` and `GET /api/download/jobs/{id}` for progress/ETA.
-3. Add a download panel to the frontend with progress bars and cancel buttons.
+1. `RunnerDetector` service: check `PATH` / common install directories (Windows & macOS) for `ollama`, LM Studio, and `llama-server`/`llama-cli` binaries.
+2. Read/write LM Studio's model directory config; on download, place GGUF/MLX files directly into its expected folder structure.
+3. Add an "Import to Ollama" action that writes a `Modelfile` next to the downloaded GGUF and shells out to `ollama create`.
+4. Settings panel showing detected runners, their model paths, and manual override fields for anything not auto-detected.
 
-### Then: **Milestone 11 — Runner Detection & Shared Model Folder**
+### Then: **Milestone 10 — Standalone Tauri Desktop Build**
 Why here:
 - Builds directly on the runner commands (M9) and download queue (M8) — once the app manages downloads and knows the runner target, it can go one step further and register the file with that runner automatically.
 - Doesn't require the desktop build; the existing local backend can already probe installed paths.

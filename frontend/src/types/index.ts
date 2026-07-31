@@ -92,6 +92,24 @@ export interface DiscoverResult {
   families: ModelFamily[];
 }
 
+export interface DownloadJob {
+  id: string;
+  url: string;
+  filename: string;
+  destination: string | null;
+  status: "pending" | "queued" | "running" | "completed" | "failed" | "cancelled";
+  progress_bytes: number;
+  total_bytes: number | null;
+  percent: number;
+  speed_bps: number | null;
+  eta_seconds: number | null;
+  eta_formatted: string | null;
+  error_message: string | null;
+  created_at: number;
+  updated_at: number;
+  local_path: string | null;
+}
+
 export interface DownloadResult {
   url: string;
   local_path: string;
