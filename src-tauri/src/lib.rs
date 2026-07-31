@@ -30,10 +30,14 @@ fn spawn_backend(app: &AppHandle) -> Result<CommandChild, String> {
         while let Some(event) = rx.recv().await {
             match event {
                 tauri_plugin_shell::process::CommandEvent::Stdout(line) => {
-                    println!("[backend stdout] {}", String::from_utf8_lossy(&line));
+                    let text = String::from_utf8_lossy(&line).to_string();
+                    println!("[backend stdout] {}", text);
+                    let _ = app_handle.emit("backend-log", serde_json::json!({"stream":"stdout","text":text}));
                 }
                 tauri_plugin_shell::process::CommandEvent::Stderr(line) => {
-                    eprintln!("[backend stderr] {}", String::from_utf8_lossy(&line));
+                    let text = String::from_utf8_lossy(&line).to_string();
+                    eprintln!("[backend stderr] {}", text);
+                    let _ = app_handle.emit("backend-log", serde_json::json!({"stream":"stderr","text":text}));
                 }
                 tauri_plugin_shell::process::CommandEvent::Error(err) => {
                     eprintln!("[backend error] {}", err);
@@ -41,6 +45,7 @@ fn spawn_backend(app: &AppHandle) -> Result<CommandChild, String> {
                 }
                 tauri_plugin_shell::process::CommandEvent::Terminated(payload) => {
                     println!("[backend terminated] {:?}", payload);
+                    let _ = app_handle.emit("backend-terminated", payload);
                     break;
                 }
                 _ => {}

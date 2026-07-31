@@ -152,3 +152,9 @@ export interface RunnerSettings {
   binary_path: string | null;
   model_path: string | null;
 }
+
+export interface BackendLog {
+  stream: "stdout" | "stderr";
+  text: string;
+  receivedAt: number;
+}
