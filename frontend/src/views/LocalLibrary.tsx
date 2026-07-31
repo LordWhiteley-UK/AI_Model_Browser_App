@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   getInventory,
   getLauncherInfo,
+  importToOllama,
   scanInventory,
   setPreferredRunner,
 } from "../api/client";
@@ -20,6 +21,7 @@ import {
   Search,
   Settings,
   Terminal,
+  Wrench,
   X,
 } from "lucide-react";
 
@@ -46,6 +48,7 @@ export default function LocalLibrary() {
   const [loading, setLoading] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [launcherItem, setLauncherItem] = useState<LocalInventoryItem | null>(
@@ -54,6 +57,7 @@ export default function LocalLibrary() {
   const [launcherInfo, setLauncherInfo] = useState<LauncherInfo | null>(null);
   const [launcherLoading, setLauncherLoading] = useState(false);
   const [copiedRunner, setCopiedRunner] = useState<string | null>(null);
+  const [importingId, setImportingId] = useState<number | null>(null);
 
   async function loadInventory() {
     try {
@@ -129,6 +133,25 @@ export default function LocalLibrary() {
     }
   }
 
+  async function handleImportToOllama(item: LocalInventoryItem) {
+    if (!item.local_path.toLowerCase().endsWith(".gguf")) {
+      setError("Ollama import only supports GGUF files");
+      return;
+    }
+    setImportingId(item.id);
+    setError(null);
+    setSuccess(null);
+    try {
+      const result = await importToOllama(item.id);
+      setSuccess(`Imported into Ollama as ${result.model}`);
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ollama import failed");
+    } finally {
+      setImportingId(null);
+    }
+  }
+
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
       const matchesSearch =
@@ -193,6 +216,13 @@ export default function LocalLibrary() {
           <div className="mt-4 flex items-start gap-2 rounded-lg bg-red-900/30 p-3 text-red-200">
             <AlertCircle className="mt-0.5 w-4 h-4" />
             {error}
+          </div>
+        )}
+
+        {success && (
+          <div className="mt-4 flex items-start gap-2 rounded-lg bg-green-900/30 p-3 text-green-200">
+            <Check className="mt-0.5 w-4 h-4" />
+            {success}
           </div>
         )}
 
@@ -303,6 +333,21 @@ export default function LocalLibrary() {
                       </option>
                     ))}
                   </select>
+                  {item.detected_format.toLowerCase() === "gguf" && (
+                    <button
+                      onClick={() => handleImportToOllama(item)}
+                      disabled={importingId === item.id}
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-600 px-2 py-1 text-xs text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-50"
+                      title="Import to Ollama"
+                    >
+                      {importingId === item.id ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Wrench className="w-3 h-3" />
+                      )}
+                      Ollama
+                    </button>
+                  )}
                   <button
                     onClick={() => openLauncher(item)}
                     className="rounded-lg border border-gray-600 p-2 text-gray-400 hover:text-white hover:border-gray-500"

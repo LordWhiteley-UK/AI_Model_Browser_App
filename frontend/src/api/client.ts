@@ -1,11 +1,13 @@
 import axios from "axios";
 import type {
+  DetectedRunner,
   DiscoverResult,
   DownloadJob,
   HardwareProfile,
   HealthStatus,
   LauncherInfo,
   LocalInventoryItem,
+  RunnerSettings,
   ScanResult,
   SystemSpecs,
 } from "../types";
@@ -105,6 +107,34 @@ export async function setPreferredRunner(
   return response.data;
 }
 
+export async function getDetectedRunners(): Promise<DetectedRunner[]> {
+  const response = await api.get<{ runners: DetectedRunner[] }>("/api/runners/detected");
+  return response.data.runners;
+}
+
+export async function updateRunnerSettings(
+  runnerId: string,
+  settings: Partial<RunnerSettings>,
+): Promise<DetectedRunner> {
+  const response = await api.put<DetectedRunner>(
+    `/api/runners/settings/${runnerId}`,
+    settings,
+  );
+  return response.data;
+}
+
+export async function importToOllama(
+  inventoryItemId: number,
+  modelName?: string,
+): Promise<{ imported: boolean; runner: string; model: string }> {
+  const params = new URLSearchParams();
+  if (modelName) params.set("model_name", modelName);
+  const response = await api.post<{ imported: boolean; runner: string; model: string }>(
+    `/api/runners/import-ollama/${inventoryItemId}?${params.toString()}`,
+  );
+  return response.data;
+}
+
 export async function searchModels(
   query: string,
   capability?: string,
@@ -128,11 +158,15 @@ export async function startDownloadJob(
   url: string,
   filename: string,
   destination?: string,
+  runnerTarget?: string,
+  sourceFamilyId?: string,
 ): Promise<DownloadJob> {
   const response = await api.post<DownloadJob>("/api/download/jobs", {
     url,
     filename,
     destination,
+    runner_target: runnerTarget,
+    source_family_id: sourceFamilyId,
   });
   return response.data;
 }

@@ -9,18 +9,20 @@ import {
   Globe,
   HardDrive,
   Server,
+  Settings,
 } from "lucide-react";
 import Discover from "./views/Discover";
 import Downloads from "./views/Downloads";
 import HardwareProfiles from "./views/HardwareProfiles";
 import LocalLibrary from "./views/LocalLibrary";
+import RunnerSettings from "./views/RunnerSettings";
 
 function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<
-    "dashboard" | "hardware" | "library" | "discover" | "downloads"
+    "dashboard" | "hardware" | "library" | "discover" | "downloads" | "runners"
   >("dashboard");
 
   useEffect(() => {
@@ -57,6 +59,7 @@ function App() {
     { id: "downloads", label: "Downloads" },
     { id: "library", label: "Library" },
     { id: "hardware", label: "Hardware" },
+    { id: "runners", label: "Runners" },
   ];
 
   const nav = (
@@ -115,6 +118,15 @@ function App() {
       <div className="min-h-screen bg-gray-900 text-gray-100">
         {nav}
         <Downloads />
+      </div>
+    );
+  }
+
+  if (view === "runners") {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100">
+        {nav}
+        <RunnerSettings />
       </div>
     );
   }
@@ -232,6 +244,22 @@ function App() {
             </div>
             <p className="text-gray-400">
               Track queued and active model downloads with progress and ETA.
+            </p>
+          </button>
+
+          <button
+            onClick={() => setView("runners")}
+            className="rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-sm text-left hover:bg-gray-800/80 transition-colors"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Settings className="w-5 h-5 text-purple-400" />
+                Runner Settings
+              </h2>
+              <Activity className="w-5 h-5 text-purple-400" />
+            </div>
+            <p className="text-gray-400">
+              Detect installed runners and configure shared model folders.
             </p>
           </button>
         </section>

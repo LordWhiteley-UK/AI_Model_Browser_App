@@ -8,6 +8,8 @@ from typing import Any
 
 import httpx
 
+from services.runner_integration import import_to_ollama, move_to_lm_studio
+
 DEFAULT_DOWNLOAD_DIR = Path.home() / "AI_Model_Browser_Downloads"
 
 
@@ -36,6 +38,8 @@ class DownloadJob:
     url: str
     filename: str
     destination: str | None
+    runner_target: str | None = None
+    source_family_id: str | None = None
     status: str = "pending"
     progress_bytes: int = 0
     total_bytes: int | None = None
@@ -46,6 +50,7 @@ class DownloadJob:
     created_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
     local_path: str | None = None
+    runner_action_result: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,6 +69,9 @@ class DownloadJob:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "local_path": self.local_path,
+            "runner_target": self.runner_target,
+            "source_family_id": self.source_family_id,
+            "runner_action_result": self.runner_action_result,
         }
 
 
@@ -80,6 +88,8 @@ class DownloadManager:
         url: str,
         filename: str | None = None,
         destination: str | None = None,
+        runner_target: str | None = None,
+        source_family_id: str | None = None,
     ) -> DownloadJob:
         dest_dir = Path(destination).expanduser() if destination else self.default_dir
         _ensure_dir(dest_dir)
@@ -92,6 +102,8 @@ class DownloadManager:
             url=url,
             filename=out_filename,
             destination=str(out_path.parent) if destination else None,
+            runner_target=runner_target,
+            source_family_id=source_family_id,
             local_path=str(out_path.resolve()),
         )
 
@@ -168,6 +180,21 @@ class DownloadManager:
                     job.percent = 100.0 if job.total_bytes else job.percent
                     job.eta_seconds = 0
                     job.updated_at = time.time()
+
+                    if job.runner_target == "lm_studio" and job.local_path:
+                        try:
+                            job.runner_action_result = await move_to_lm_studio(
+                                job.local_path, job.source_family_id
+                            )
+                        except Exception as e:
+                            job.error_message = f"Download ok, but LM Studio move failed: {e}"
+                    elif job.runner_target == "ollama" and job.local_path:
+                        try:
+                            job.runner_action_result = await import_to_ollama(
+                                job.local_path
+                            )
+                        except Exception as e:
+                            job.error_message = f"Download ok, but Ollama import failed: {e}"
 
         except asyncio.CancelledError:
             job.status = "cancelled"

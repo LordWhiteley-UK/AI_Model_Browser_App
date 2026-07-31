@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, HTTPException, Query
+import subprocess
 from typing import Literal
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -14,6 +15,8 @@ from services.download_queue import DownloadManager
 from services.hardware_detector import detect_system_specs
 from services.launcher import SUPPORTED_RUNNERS, build_launcher_command
 from services.local_scanner import scan_folders
+from services.runner_detector import apply_overrides, detect_all_runners, detect_ollama
+from models.runner_settings import RunnerPathOverride
 
 download_manager = DownloadManager()
 
@@ -259,6 +262,8 @@ class DownloadRequest(BaseModel):
     url: str
     filename: str | None = None
     destination: str | None = None
+    runner_target: str | None = None
+    source_family_id: str | None = None
 
 
 @app.post("/api/download")
@@ -268,6 +273,8 @@ async def download_model_file(request: DownloadRequest):
             url=request.url,
             filename=request.filename,
             destination=request.destination,
+            runner_target=request.runner_target,
+            source_family_id=request.source_family_id,
         )
         return job.to_dict()
     except Exception as e:
@@ -281,6 +288,8 @@ async def create_download_job(request: DownloadRequest):
             url=request.url,
             filename=request.filename,
             destination=request.destination,
+            runner_target=request.runner_target,
+            source_family_id=request.source_family_id,
         )
         return job.to_dict()
     except Exception as e:
@@ -320,6 +329,104 @@ def delete_download_job(job_id: str):
 @app.get("/api/runners")
 def list_runners():
     return {"runners": SUPPORTED_RUNNERS}
+
+
+@app.get("/api/runners/detected")
+def get_detected_runners(session: Session = Depends(get_session)):
+    runners = detect_all_runners()
+    overrides = {
+        row.runner_id: {
+            "binary_path": row.binary_path,
+            "model_path": row.model_path,
+        }
+        for row in session.exec(select(RunnerPathOverride)).all()
+    }
+    return {
+        "runners": [
+            runner.to_dict() for runner in apply_overrides(runners, overrides)
+        ]
+    }
+
+
+class RunnerPathRequest(BaseModel):
+    binary_path: str | None = None
+    model_path: str | None = None
+
+
+@app.put("/api/runners/settings/{runner_id}")
+def update_runner_settings(
+    runner_id: str,
+    request: RunnerPathRequest,
+    session: Session = Depends(get_session),
+):
+    override = session.get(RunnerPathOverride, runner_id)
+    if not override:
+        override = RunnerPathOverride(runner_id=runner_id)
+    if request.binary_path is not None:
+        override.binary_path = request.binary_path or None
+    if request.model_path is not None:
+        override.model_path = request.model_path or None
+    session.add(override)
+    session.commit()
+    session.refresh(override)
+
+    runners = detect_all_runners()
+    overrides = {
+        row.runner_id: {
+            "binary_path": row.binary_path,
+            "model_path": row.model_path,
+        }
+        for row in session.exec(select(RunnerPathOverride)).all()
+    }
+    updated = apply_overrides(runners, overrides)
+    for runner in updated:
+        if runner.id == runner_id:
+            return runner.to_dict()
+    raise HTTPException(status_code=404, detail="Runner not found")
+
+
+@app.post("/api/runners/import-ollama/{inventory_item_id}")
+async def import_to_ollama(
+    inventory_item_id: int,
+    model_name: str | None = None,
+    session: Session = Depends(get_session),
+):
+    item = session.get(LocalInventory, inventory_item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    runner = detect_ollama()
+    overrides = session.exec(
+        select(RunnerPathOverride).where(RunnerPathOverride.runner_id == "ollama")
+    ).first()
+    if overrides and overrides.binary_path:
+        runner.binary_path = overrides.binary_path
+        runner.detected = True
+
+    if not runner.detected or not runner.binary_path:
+        raise HTTPException(status_code=400, detail="Ollama is not detected or configured")
+
+    if not item.local_path.lower().endswith(".gguf"):
+        raise HTTPException(status_code=400, detail="Ollama import only supports GGUF files")
+
+    local_path = Path(item.local_path)
+    modelfile_path = local_path.with_suffix(".Modelfile")
+    modelfile_path.write_text(f"FROM {local_path}\n")
+
+    name = model_name or local_path.stem.lower().replace(" ", "-").replace("_", "-")
+    try:
+        result = subprocess.run(
+            [runner.binary_path, "create", name, "-f", str(modelfile_path)],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "ollama create failed")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ollama import failed: {e}")
+
+    return {"imported": True, "runner": "ollama", "model": name}
 
 
 if __name__ == "__main__":

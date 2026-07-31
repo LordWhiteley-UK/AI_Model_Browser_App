@@ -4,6 +4,7 @@ from models.hardware import HardwareProfile
 from models.inventory import LocalInventory
 from models.model_family import ModelFamily
 from models.model_file import ModelFile
+from models.runner_settings import RunnerPathOverride
 
 DATABASE_URL = "sqlite:///models.db"
 

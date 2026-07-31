@@ -28,6 +28,12 @@ const CAPABILITY_FILTERS = [
   "Audio",
   "Multimodal",
 ];
+
+const DOWNLOAD_TARGETS = [
+  { id: "default", label: "Default folder" },
+  { id: "lm_studio", label: "LM Studio folder" },
+  { id: "ollama", label: "Ollama import" },
+];
 const FORMAT_FILTERS = [
   "All",
   "GGUF",
@@ -111,6 +117,7 @@ export default function Discover() {
   );
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadResult, setDownloadResult] = useState<string | null>(null);
+  const [downloadTarget, setDownloadTarget] = useState("default");
 
   function setModeAndClear(newMode: DiscoverMode) {
     setMode(newMode);
@@ -175,16 +182,30 @@ export default function Discover() {
     });
   }
 
-  async function handleDownload(url: string, filename: string, familyId: string) {
+  async function handleDownload(
+    url: string,
+    filename: string,
+    familyId: string,
+  ) {
     const id = `${familyId}/${filename}`;
     setDownloadingId(id);
     setDownloadResult(null);
     try {
-      const job = await startDownloadJob(url, filename);
-      setDownloadResult(
-        `Queued ${job.filename}. Track progress in the Downloads page.`,
+      const job = await startDownloadJob(
+        url,
+        filename,
+        undefined,
+        downloadTarget === "default" ? undefined : downloadTarget,
+        familyId,
       );
-      setTimeout(() => setDownloadResult(null), 4000);
+      let message = `Queued ${job.filename}. Track progress in the Downloads page.`;
+      if (downloadTarget === "lm_studio") {
+        message += " It will be moved to the LM Studio folder on completion.";
+      } else if (downloadTarget === "ollama") {
+        message += " It will be imported into Ollama on completion.";
+      }
+      setDownloadResult(message);
+      setTimeout(() => setDownloadResult(null), 5000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Download failed");
     } finally {
@@ -293,6 +314,23 @@ export default function Discover() {
               }`}
             >
               {fmt === "All" ? "All formats" : fmt}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-sm text-gray-400">Download to:{" "}</span>
+          {DOWNLOAD_TARGETS.map((target) => (
+            <button
+              key={target.id}
+              onClick={() => setDownloadTarget(target.id)}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                downloadTarget === target.id
+                  ? "bg-orange-600 text-white"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+              }`}
+            >
+              {target.label}
             </button>
           ))}
         </div>

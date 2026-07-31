@@ -15,6 +15,7 @@ import {
   Loader2,
   Pause,
   Trash2,
+  Wrench,
   X,
 } from "lucide-react";
 
@@ -182,6 +183,25 @@ export default function Downloads() {
                       )}
                       {job.eta_formatted && job.status === "running" && (
                         <span>ETA {job.eta_formatted}</span>
+                      )}
+                      {job.runner_target && job.status !== "completed" && (
+                        <span className="inline-flex items-center gap-1 text-orange-300">
+                          <Wrench className="w-3 h-3" />
+                          {job.runner_target === "lm_studio"
+                            ? "Move to LM Studio"
+                            : job.runner_target === "ollama"
+                              ? "Import to Ollama"
+                              : job.runner_target}
+                        </span>
+                      )}
+                      {job.runner_action_result && (
+                        <span className="text-green-400">
+                          {job.runner_action_result.runner === "ollama"
+                            ? `Imported as ${job.runner_action_result.model}`
+                            : job.runner_action_result.runner === "lm_studio"
+                              ? `Moved to LM Studio`
+                              : "Runner action complete"}
+                        </span>
                       )}
                       {job.error_message && (
                         <span className="text-red-400">{job.error_message}</span>

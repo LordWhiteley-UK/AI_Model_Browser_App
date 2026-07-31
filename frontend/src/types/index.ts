@@ -108,6 +108,9 @@ export interface DownloadJob {
   created_at: number;
   updated_at: number;
   local_path: string | null;
+  runner_target: string | null;
+  source_family_id: string | null;
+  runner_action_result: Record<string, unknown> | null;
 }
 
 export interface DownloadResult {
@@ -134,4 +137,18 @@ export interface LauncherInfo {
   filename: string;
   preferred_runner: string | null;
   runners: RunnerOption[];
+}
+
+export interface DetectedRunner {
+  id: string;
+  name: string;
+  detected: boolean;
+  binary_path: string | null;
+  version: string | null;
+  default_model_path: string | null;
+}
+
+export interface RunnerSettings {
+  binary_path: string | null;
+  model_path: string | null;
 }

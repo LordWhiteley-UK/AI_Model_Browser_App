@@ -26,6 +26,8 @@ This file records the features that have already been built, what is currently i
 | # | Milestone | Status | What it adds |
 | :- | :--------- | :----- | :----------- |
 | 8 | **Download Progress & Queue** | ✅ Complete | In-memory async download job queue with progress/ETA/speed, cancel and delete endpoints, Downloads view with progress bars and status badges. |
+| 9 | **Local Library Runner Commands** | ✅ Complete | Generate ready-to-run commands for Ollama, llama.cpp, LM Studio, KoboldCpp, vLLM; store preferred runner per file; copy-to-clipboard in launcher modal. |
+| 11 | **Runner Detection & Shared Model Folder** | ✅ Complete | Detect Ollama/LM Studio/llama.cpp, Runner Settings view with manual overrides, download-to-LM-Studio folder move, Ollama Modelfile + `ollama create` import, Library import button. |
 | 10 | **Standalone Tauri Desktop Build** | 🔲 Not started | Bundle React + Python backend into a single `.app`/`.exe`; manage backend sidecar lifecycle. |
 | 11 | **Runner Detection & Shared Model Folder** | 🔲 Not started | Auto-detect installed runners (Ollama, LM Studio, llama.cpp) and their model storage locations; write downloads directly into LM Studio's configured folder; auto-generate Ollama `Modelfile` + `ollama create` import so downloaded GGUFs register as real Ollama models without manual steps. See note below on why this can't be one universal shared folder. |
 
@@ -37,18 +39,18 @@ This file records the features that have already been built, what is currently i
 
 ## Recommended Next Milestones
 
-### Immediate next step: **Milestone 11 — Runner Detection & Shared Model Folder**
+### Immediate next step: **Milestone 10 — Standalone Tauri Desktop Build**
 Why this first:
-- Builds directly on the runner commands (M9) and download queue (M8) — once the app manages downloads and knows the runner target, it can go one step further and register the file with that runner automatically.
-- Doesn't require the desktop build; the existing local backend can already probe installed paths.
+- This is the last remaining planned milestone; all core app features (discover, hardware, library, downloads, runners) are now in place.
+- It turns the local dev stack into a real desktop application.
 
 What to build:
-1. `RunnerDetector` service: check `PATH` / common install directories (Windows & macOS) for `ollama`, LM Studio, and `llama-server`/`llama-cli` binaries.
-2. Read/write LM Studio's model directory config; on download, place GGUF/MLX files directly into its expected folder structure.
-3. Add an "Import to Ollama" action that writes a `Modelfile` next to the downloaded GGUF and shells out to `ollama create`.
-4. Settings panel showing detected runners, their model paths, and manual override fields for anything not auto-detected.
+1. Configure `src-tauri/` to embed the Vite frontend and start the Python backend as a sidecar.
+2. Package the backend Python environment (venv or PyInstaller binary).
+3. Build and smoke-test the macOS `.app` bundle, then document Windows/Linux steps.
 
-### Then: **Milestone 10 — Standalone Tauri Desktop Build**
+### Optional next (not in original plan): **Milestone 10 follow-up polish**
+- Auto-start backend on app launch, health retry UX, tray icon, update checks.
 Why here:
 - Builds directly on the runner commands (M9) and download queue (M8) — once the app manages downloads and knows the runner target, it can go one step further and register the file with that runner automatically.
 - Doesn't require the desktop build; the existing local backend can already probe installed paths.
