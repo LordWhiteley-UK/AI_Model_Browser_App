@@ -152,7 +152,10 @@ export default function Discover() {
       setResult(data);
       setExpandedFamilies(new Set(data.families.slice(0, 3).map((f) => f.id)));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Search failed");
+      const message = err instanceof Error ? err.message : "Search failed";
+      setError(message);
+      setResult(null);
+      setExpandedFamilies(new Set());
     } finally {
       setLoading(false);
     }
