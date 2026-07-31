@@ -87,6 +87,55 @@ class ScanRequest(BaseModel):
     paths: list[str]
 
 
+class CreateProfileRequest(BaseModel):
+    name: str
+    os: str
+    cpu_name: str | None = None
+    gpu_name: str | None = None
+    ram_type: str | None = None
+    total_ram_gb: float
+    total_vram_gb: float = 0.0
+    is_unified_memory: bool = False
+
+
+@app.post("/api/hardware/profiles")
+def create_profile(
+    request: CreateProfileRequest, session: Session = Depends(get_session)
+):
+    existing = session.exec(
+        select(HardwareProfile).where(HardwareProfile.name == request.name)
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="A profile with this name already exists")
+
+    profile = HardwareProfile(
+        name=request.name,
+        os=request.os,
+        cpu_name=request.cpu_name,
+        gpu_name=request.gpu_name,
+        ram_type=request.ram_type,
+        total_ram_gb=request.total_ram_gb,
+        total_vram_gb=request.total_vram_gb,
+        is_unified_memory=request.is_unified_memory,
+    )
+    session.add(profile)
+    session.commit()
+    session.refresh(profile)
+    return profile
+
+
+@app.delete("/api/hardware/profiles/{profile_id}")
+def delete_profile(profile_id: int, session: Session = Depends(get_session)):
+    profile = session.get(HardwareProfile, profile_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    if profile.is_active:
+        raise HTTPException(status_code=400, detail="Cannot delete the active profile")
+    session.delete(profile)
+    session.commit()
+    return {"deleted": True}
+
+
 @app.post("/api/inventory/scan")
 def scan_inventory(request: ScanRequest):
     if not request.paths:

@@ -151,10 +151,10 @@ When evaluating a model file against an active `HardwareProfile`:
 - [x] Implement `/api/health` check endpoint and display status on React frontend.
 
 ### Milestone 2: Hardware Detection & Profile Management
-- [ ] Implement backend service `hardware_detector.py` using `psutil` and `platform`.
-- [ ] Set up SQLite DB schema via SQLModel in `database.py`.
-- [ ] Seed default hardware profiles (MacBook Air 24GB, Mac Mini 64GB, Gaming Rig 128GB+16GB VRAM).
-- [ ] Create UI view `HardwareProfiles.tsx` allowing users to switch active profile and view current system specs.
+- [x] Implement backend service `hardware_detector.py` using `psutil` and `platform`.
+- [x] Set up SQLite DB schema via SQLModel in `database.py`.
+- [x] Seed default hardware profiles (MacBook Air 24GB, Mac Mini 64GB, Gaming Rig 128GB+16GB VRAM).
+- [x] Create UI view `HardwareProfiles.tsx` allowing users to switch active profile and view current system specs.
 
 ### Milestone 3: Local Folder Ingestion & Auto-Tagging
 - [ ] Create API endpoint `POST /api/inventory/scan` that accepts folder paths.
@@ -177,8 +177,29 @@ When evaluating a model file against an active `HardwareProfile`:
 - [ ] Add LM Studio-style traffic light indicator badges (**Green: Runs Great**, **Yellow: Runs Slow/Partial Offload**, **Red: Incompatible**) to each model card.
 
 ### Milestone 6: Download & Launcher Integration
-- [ ] Add direct file download functionality via Python backend (`httpx` or `requests` with progress tracking).
-- [ ] Implement copy-to-clipboard file path exporter for external runners (Ollama, llama.cpp, LM Studio, KoboldCpp).
+- [x] Add direct file download functionality via Python backend (`httpx` or `requests` with progress tracking).
+- [x] Implement copy-to-clipboard download URL exporter for external runners (Ollama, llama.cpp, LM Studio, KoboldCpp).
+
+### Milestone 7: User-Defined Hardware Profiles
+- [ ] Extend `HardwareProfile` schema with `ram_type`, `gpu_name`, and migration logic for existing SQLite databases.
+- [ ] Add backend endpoints to create (`POST /api/hardware/profiles`) and delete (`DELETE /api/hardware/profiles/{id}`) user profiles.
+- [ ] Build React form in `HardwareProfiles.tsx` with curated CPU/GPU dropdowns, RAM type selector, RAM amount, and VRAM amount.
+- [ ] Allow users to switch active profile and delete non-active profiles.
+
+### Milestone 8: Download Progress & Queue
+- [ ] Replace synchronous download endpoint with a background download job queue.
+- [ ] Expose WebSocket or polling endpoint for real-time download progress.
+- [ ] Render a download queue panel with progress bars, ETA, and cancel buttons.
+
+### Milestone 9: Local Library Runner Commands
+- [ ] In the Library view, generate ready-to-run commands for llama.cpp, Ollama, LM Studio, KoboldCpp, and vLLM.
+- [ ] Add copy-to-clipboard buttons for each runner command.
+- [ ] Store preferred runner per file in SQLite.
+
+### Milestone 10: Standalone Tauri Desktop Build
+- [ ] Bundle the React frontend and Python backend into a single Tauri v2 desktop application.
+- [ ] Configure sidecar process management so the backend starts/stops with the app.
+- [ ] Build and smoke-test macOS `.app` bundle and document Windows/Linux build steps.
 
 ---
 

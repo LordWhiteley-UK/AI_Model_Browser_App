@@ -12,6 +12,8 @@ class HardwareProfile(SQLModel, table=True):
     is_active: bool = Field(default=False, nullable=False)
     os: str = Field(nullable=False)
     cpu_name: Optional[str] = Field(default=None, nullable=True)
+    gpu_name: Optional[str] = Field(default=None, nullable=True)
+    ram_type: Optional[str] = Field(default=None, nullable=True)
     total_ram_gb: float = Field(nullable=False)
     total_vram_gb: float = Field(default=0.0, nullable=False)
     is_unified_memory: bool = Field(default=False, nullable=False)

@@ -10,6 +10,8 @@ export interface HardwareProfile {
   is_active: boolean;
   os: string;
   cpu_name: string | null;
+  gpu_name: string | null;
+  ram_type: string | null;
   total_ram_gb: number;
   total_vram_gb: number;
   is_unified_memory: boolean;

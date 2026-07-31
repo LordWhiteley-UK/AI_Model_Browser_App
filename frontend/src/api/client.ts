@@ -41,6 +41,35 @@ export async function setActiveProfile(
   return response.data;
 }
 
+
+export interface CreateProfilePayload {
+  name: string;
+  os: string;
+  cpu_name?: string;
+  gpu_name?: string;
+  ram_type?: string;
+  total_ram_gb: number;
+  total_vram_gb?: number;
+  is_unified_memory?: boolean;
+}
+
+
+export async function createHardwareProfile(
+  payload: CreateProfilePayload,
+): Promise<HardwareProfile> {
+  const response = await api.post<HardwareProfile>(
+    "/api/hardware/profiles",
+    payload,
+  );
+  return response.data;
+}
+
+
+export async function deleteHardwareProfile(profileId: number): Promise<void> {
+  await api.delete(`/api/hardware/profiles/${profileId}`);
+}
+
+
 export async function getSystemSpecs(): Promise<SystemSpecs> {
   const response = await api.get<SystemSpecs>("/api/hardware/system");
   return response.data;

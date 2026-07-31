@@ -14,6 +14,29 @@ engine = create_engine(
 
 def init_db():
     SQLModel.metadata.create_all(engine)
+    _migrate_hardware_profile_columns()
+
+
+def _migrate_hardware_profile_columns():
+    """Add columns added after the initial schema creation."""
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        columns = {
+            row[1]
+            for row in conn.exec_driver_sql(
+                "PRAGMA table_info(hardwareprofile)"
+            ).fetchall()
+        }
+        if "gpu_name" not in columns:
+            conn.exec_driver_sql(
+                "ALTER TABLE hardwareprofile ADD COLUMN gpu_name VARCHAR"
+            )
+        if "ram_type" not in columns:
+            conn.exec_driver_sql(
+                "ALTER TABLE hardwareprofile ADD COLUMN ram_type VARCHAR"
+            )
+        conn.commit()
 
 
 def get_session():
