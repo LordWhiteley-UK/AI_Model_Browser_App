@@ -5,7 +5,7 @@
   "identifier": "com.aimodelbrowser.desktop",
   "build": {
     "beforeDevCommand": "cd ../frontend && npm run dev",
-    "beforeBuildCommand": "cd ../frontend && npm run build",
+    "beforeBuildCommand": "cd /Users/jps/AI_Model_Browser_App/frontend && npm run build",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../frontend/dist"
   },
