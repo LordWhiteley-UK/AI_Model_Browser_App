@@ -1,4 +1,4 @@
-import axios from "axios";
+import { fetch as tauriFetch } from "@tauri-apps/plugin-http";
 import type {
   ChatMessage,
   DetectedRunner,
@@ -16,35 +16,90 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
-export const api = axios.create({
-  baseURL: API_BASE,
-  timeout: 30000,
-});
+function isTauri(): boolean {
+  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+}
+
+async function httpFetch(
+  input: string | URL | Request,
+  init?: RequestInit,
+): Promise<Response> {
+  if (isTauri()) {
+    return tauriFetch(input, init);
+  }
+  return globalThis.fetch(input, init);
+}
+
+async function apiGet<T>(path: string): Promise<T> {
+  const response = await httpFetch(`${API_BASE}${path}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function apiPost<T>(path: string, body?: unknown): Promise<T> {
+  const response = await httpFetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function apiPut<T>(path: string, body?: unknown): Promise<T> {
+  const response = await httpFetch(`${API_BASE}${path}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function apiDelete(path: string): Promise<void> {
+  const response = await httpFetch(`${API_BASE}${path}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+}
 
 export async function getHealth(): Promise<HealthStatus> {
-  const response = await api.get<HealthStatus>("/api/health");
-  return response.data;
+  return apiGet<HealthStatus>("/api/health");
 }
 
 export async function getHardwareProfiles(): Promise<HardwareProfile[]> {
-  const response = await api.get<HardwareProfile[]>("/api/hardware/profiles");
-  return response.data;
+  return apiGet<HardwareProfile[]>("/api/hardware/profiles");
 }
 
 export async function getActiveProfile(): Promise<HardwareProfile> {
-  const response = await api.get<HardwareProfile>("/api/hardware/active");
-  return response.data;
+  return apiGet<HardwareProfile>("/api/hardware/active");
 }
 
 export async function setActiveProfile(
   profileId: number,
 ): Promise<HardwareProfile> {
-  const response = await api.post<HardwareProfile>(
-    `/api/hardware/active/${profileId}`,
-  );
-  return response.data;
+  return apiPost<HardwareProfile>(`/api/hardware/active/${profileId}`);
 }
-
 
 export interface CreateProfilePayload {
   name: string;
@@ -57,72 +112,53 @@ export interface CreateProfilePayload {
   is_unified_memory?: boolean;
 }
 
-
 export async function createHardwareProfile(
   payload: CreateProfilePayload,
 ): Promise<HardwareProfile> {
-  const response = await api.post<HardwareProfile>(
-    "/api/hardware/profiles",
-    payload,
-  );
-  return response.data;
+  return apiPost<HardwareProfile>("/api/hardware/profiles", payload);
 }
-
 
 export async function deleteHardwareProfile(profileId: number): Promise<void> {
-  await api.delete(`/api/hardware/profiles/${profileId}`);
+  await apiDelete(`/api/hardware/profiles/${profileId}`);
 }
 
-
 export async function getSystemSpecs(): Promise<SystemSpecs> {
-  const response = await api.get<SystemSpecs>("/api/hardware/system");
-  return response.data;
+  return apiGet<SystemSpecs>("/api/hardware/system");
 }
 
 export async function scanInventory(paths: string[]): Promise<ScanResult> {
-  const response = await api.post<ScanResult>("/api/inventory/scan", {
-    paths,
-  });
-  return response.data;
+  return apiPost<ScanResult>("/api/inventory/scan", { paths });
 }
 
 export async function getInventory(): Promise<LocalInventoryItem[]> {
-  const response = await api.get<LocalInventoryItem[]>("/api/inventory");
-  return response.data;
+  return apiGet<LocalInventoryItem[]>("/api/inventory");
 }
 
 export async function getLauncherInfo(itemId: number): Promise<LauncherInfo> {
-  const response = await api.get<LauncherInfo>(
-    `/api/inventory/${itemId}/launch`,
-  );
-  return response.data;
+  return apiGet<LauncherInfo>(`/api/inventory/${itemId}/launch`);
 }
 
 export async function setPreferredRunner(
   itemId: number,
   runner: string,
 ): Promise<LocalInventoryItem> {
-  const response = await api.post<LocalInventoryItem>(
-    `/api/inventory/${itemId}/runner`,
-    { runner },
-  );
-  return response.data;
+  return apiPost<LocalInventoryItem>(`/api/inventory/${itemId}/runner`, {
+    runner,
+  });
 }
 
 export async function getDetectedRunners(): Promise<DetectedRunner[]> {
-  const response = await api.get<{ runners: DetectedRunner[] }>("/api/runners/detected");
-  return response.data.runners;
+  const response = await apiGet<{ runners: DetectedRunner[] }>(
+    "/api/runners/detected",
+  );
+  return response.runners;
 }
 
 export async function updateRunnerSettings(
   runnerId: string,
   settings: Partial<RunnerSettings>,
 ): Promise<DetectedRunner> {
-  const response = await api.put<DetectedRunner>(
-    `/api/runners/settings/${runnerId}`,
-    settings,
-  );
-  return response.data;
+  return apiPut<DetectedRunner>(`/api/runners/settings/${runnerId}`, settings);
 }
 
 export async function importToOllama(
@@ -131,10 +167,9 @@ export async function importToOllama(
 ): Promise<{ imported: boolean; runner: string; model: string }> {
   const params = new URLSearchParams();
   if (modelName) params.set("model_name", modelName);
-  const response = await api.post<{ imported: boolean; runner: string; model: string }>(
+  return apiPost<{ imported: boolean; runner: string; model: string }>(
     `/api/runners/import-ollama/${inventoryItemId}?${params.toString()}`,
   );
-  return response.data;
 }
 
 export async function searchModels(
@@ -150,10 +185,7 @@ export async function searchModels(
   if (format) params.set("format", format);
   if (sort) params.set("sort", sort);
   params.set("limit", String(limit));
-  const response = await api.get<DiscoverResult>(
-    `/api/discover/search?${params.toString()}`,
-  );
-  return response.data;
+  return apiGet<DiscoverResult>(`/api/discover/search?${params.toString()}`);
 }
 
 export async function startDownloadJob(
@@ -163,51 +195,43 @@ export async function startDownloadJob(
   runnerTarget?: string,
   sourceFamilyId?: string,
 ): Promise<DownloadJob> {
-  const response = await api.post<DownloadJob>("/api/download/jobs", {
+  return apiPost<DownloadJob>("/api/download/jobs", {
     url,
     filename,
     destination,
     runner_target: runnerTarget,
     source_family_id: sourceFamilyId,
   });
-  return response.data;
 }
 
 export async function getDownloadJobs(): Promise<DownloadJob[]> {
-  const response = await api.get<{ jobs: DownloadJob[] }>("/api/download/jobs");
-  return response.data.jobs;
+  const response = await apiGet<{ jobs: DownloadJob[] }>("/api/download/jobs");
+  return response.jobs;
 }
 
 export async function getDownloadJob(jobId: string): Promise<DownloadJob> {
-  const response = await api.get<DownloadJob>(`/api/download/jobs/${jobId}`);
-  return response.data;
+  return apiGet<DownloadJob>(`/api/download/jobs/${jobId}`);
 }
 
 export async function cancelDownloadJob(jobId: string): Promise<DownloadJob> {
-  const response = await api.post<DownloadJob>(`/api/download/jobs/${jobId}/cancel`);
-  return response.data;
+  return apiPost<DownloadJob>(`/api/download/jobs/${jobId}/cancel`);
 }
 
 export async function deleteDownloadJob(jobId: string): Promise<void> {
-  await api.delete(`/api/download/jobs/${jobId}`);
+  await apiDelete(`/api/download/jobs/${jobId}`);
 }
-
 
 export async function getDownloadSettings(): Promise<DownloadSettings> {
-  const response = await api.get<DownloadSettings>("/api/download/settings");
-  return response.data;
+  return apiGet<DownloadSettings>("/api/download/settings");
 }
-
 
 export async function updateDownloadSettings(
   bandwidthCapMbps: number | null,
 ): Promise<DownloadSettings> {
-  const response = await api.put<DownloadSettings>("/api/download/settings", {
+  return apiPut<DownloadSettings>("/api/download/settings", {
     bandwidth_cap_mbps: bandwidthCapMbps,
   });
-  return response.data;
 }
-
 
 export function streamChat(
   inventoryItemId: number,
@@ -220,9 +244,9 @@ export function streamChat(
   const controller = new AbortController();
   const responseContent: string[] = [];
 
-  fetch(`${API_BASE}/api/chat`, {
+  httpFetch(`${API_BASE}/api/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
     body: JSON.stringify({
       inventory_item_id: inventoryItemId,
       runner,

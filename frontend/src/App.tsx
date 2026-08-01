@@ -5,6 +5,7 @@ import type { BackendLog, HealthStatus } from "./types";
 import {
   Activity,
   Archive,
+  BookOpen,
   Cpu,
   Download,
   Globe,
@@ -22,6 +23,7 @@ import Discover from "./views/Discover";
 import Downloads from "./views/Downloads";
 import HardwareProfiles from "./views/HardwareProfiles";
 import LocalLibrary from "./views/LocalLibrary";
+import Manual from "./views/Manual";
 import RunnerSettings from "./views/RunnerSettings";
 
 const MAX_STARTUP_WAIT_MS = 60_000;
@@ -157,6 +159,7 @@ function App() {
     | "downloads"
     | "runners"
     | "chat"
+    | "manual"
   >("dashboard");
   const startTimeRef = useRef(Date.now());
   const { logs, clear } = useBackendLogs(500);
@@ -208,6 +211,7 @@ function App() {
     { id: "hardware", label: "Hardware" },
     { id: "runners", label: "Runners" },
     { id: "chat", label: "Chat" },
+    { id: "manual", label: "Help" },
   ];
 
   const nav = (
@@ -300,6 +304,16 @@ function App() {
       <div className="min-h-screen bg-gray-900 text-gray-100">
         {nav}
         <Chat />
+        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
+      </div>
+    );
+  }
+
+  if (view === "manual") {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100">
+        {nav}
+        <Manual />
         {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
       </div>
     );
@@ -450,6 +464,22 @@ function App() {
             </div>
             <p className="text-gray-400">
               Prompt a loaded model through Ollama, llama.cpp, or LM Studio.
+            </p>
+          </button>
+
+          <button
+            onClick={() => setView("manual")}
+            className="rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-sm text-left hover:bg-gray-800/80 transition-colors"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-orange-400" />
+                User Manual
+              </h2>
+              <Activity className="h-5 w-5 text-orange-400" />
+            </div>
+            <p className="text-gray-400">
+              Learn how to discover, download, and run local AI models.
             </p>
           </button>
         </section>
