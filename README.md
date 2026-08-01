@@ -4,9 +4,15 @@ Discover, download, and run local AI models on your own hardware.
 
 AI Model Browser is a desktop app that wraps a Python FastAPI backend inside a Tauri v2 shell. The frontend is built with React 18, TypeScript, and Tailwind CSS. The backend uses Uvicorn, SQLModel/SQLAlchemy, and SQLite. A PyInstaller-built sidecar is bundled with the app so end users do not need Python installed.
 
-![Architecture](docs/architecture.png)
+## Screenshots
 
-> If `docs/architecture.png` is missing, the image above will not render. You can generate or replace it with a simple diagram of your own.
+| Dashboard | Discover Models | Downloads |
+|---|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Discover Models](docs/screenshots/discover.png) | ![Downloads](docs/screenshots/downloads.png) |
+
+| User Manual | About |
+|---|---|
+| ![User Manual](docs/screenshots/manual.png) | ![About](docs/screenshots/about.png) |
 
 ## Features
 
