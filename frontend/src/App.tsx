@@ -10,6 +10,7 @@ import {
   Download,
   Globe,
   HardDrive,
+  Info,
   Loader2,
   MessageSquare,
   ScrollText,
@@ -25,6 +26,7 @@ import HardwareProfiles from "./views/HardwareProfiles";
 import LocalLibrary from "./views/LocalLibrary";
 import Manual from "./views/Manual";
 import RunnerSettings from "./views/RunnerSettings";
+import About from "./views/About";
 
 const MAX_STARTUP_WAIT_MS = 60_000;
 const HEALTH_RETRY_MS = 1_500;
@@ -160,6 +162,7 @@ function App() {
     | "runners"
     | "chat"
     | "manual"
+    | "about"
   >("dashboard");
   const startTimeRef = useRef(Date.now());
   const { logs, clear } = useBackendLogs(500);
@@ -212,6 +215,7 @@ function App() {
     { id: "runners", label: "Runners" },
     { id: "chat", label: "Chat" },
     { id: "manual", label: "Help" },
+    { id: "about", label: "About" },
   ];
 
   const nav = (
@@ -314,6 +318,16 @@ function App() {
       <div className="min-h-screen bg-gray-900 text-gray-100">
         {nav}
         <Manual />
+        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
+      </div>
+    );
+  }
+
+  if (view === "about") {
+    return (
+      <div className="min-h-screen bg-gray-900 text-gray-100">
+        {nav}
+        <About />
         {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
       </div>
     );
@@ -480,6 +494,22 @@ function App() {
             </div>
             <p className="text-gray-400">
               Learn how to discover, download, and run local AI models.
+            </p>
+          </button>
+
+          <button
+            onClick={() => setView("about")}
+            className="rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-sm text-left hover:bg-gray-800/80 transition-colors"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Info className="h-5 w-5 text-pink-400" />
+                About
+              </h2>
+              <Activity className="h-5 w-5 text-pink-400" />
+            </div>
+            <p className="text-gray-400">
+              Version, credits, license, and links for AI Model Browser.
             </p>
           </button>
         </section>
