@@ -6,6 +6,7 @@ import {
   Activity,
   Archive,
   BookOpen,
+  Command,
   Cpu,
   Download,
   Globe,
@@ -15,7 +16,7 @@ import {
   MessageSquare,
   ScrollText,
   Server,
-  Settings,
+  Settings2,
   Trash2,
   X,
 } from "lucide-react";
@@ -27,6 +28,9 @@ import LocalLibrary from "./views/LocalLibrary";
 import Manual from "./views/Manual";
 import RunnerSettings from "./views/RunnerSettings";
 import About from "./views/About";
+import Settings from "./views/Settings";
+import UpdateNotification from "./components/UpdateNotification";
+import CommandPalette from "./components/CommandPalette";
 
 const MAX_STARTUP_WAIT_MS = 60_000;
 const HEALTH_RETRY_MS = 1_500;
@@ -163,7 +167,13 @@ function App() {
     | "chat"
     | "manual"
     | "about"
+    | "settings"
   >("dashboard");
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [discoverMode, setDiscoverMode] = useState<
+    "url" | "search" | undefined
+  >(undefined);
+  const [discoverQuery, setDiscoverQuery] = useState("");
   const startTimeRef = useRef(Date.now());
   const { logs, clear } = useBackendLogs(500);
 
@@ -201,6 +211,19 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const isModifier = event.metaKey || event.ctrlKey;
+      if (isModifier && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPaletteOpen((prev) => !prev);
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const healthy = health?.status === "ok";
   const showStartup = loading && !forceContinue && !healthy;
 
@@ -215,6 +238,7 @@ function App() {
     { id: "runners", label: "Runners" },
     { id: "chat", label: "Chat" },
     { id: "manual", label: "Help" },
+    { id: "settings", label: "Settings" },
     { id: "about", label: "About" },
   ];
 
@@ -244,6 +268,13 @@ function App() {
             <ScrollText className="h-3.5 w-3.5" />
             Logs
           </button>
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="flex items-center gap-1 rounded-lg border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-gray-800"
+          >
+            <Command className="h-3.5 w-3.5" />
+            <kbd className="hidden font-sans sm:inline">⌘K</kbd>
+          </button>
         </div>
       </div>
     </nav>
@@ -253,90 +284,50 @@ function App() {
     return <StartupOverlay logs={latestLogs} onContinue={() => setForceContinue(true)} />;
   }
 
-  if (view === "hardware") {
-    return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {nav}
-        <HardwareProfiles />
-        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
-      </div>
-    );
+  const commandPalette = (
+    <CommandPalette
+      open={paletteOpen}
+      onClose={() => setPaletteOpen(false)}
+      onNavigate={(next, mode) => {
+        setView(next);
+        setDiscoverMode(mode);
+        setDiscoverQuery("");
+        setPaletteOpen(false);
+      }}
+      onShowLogs={() => {
+        setShowLogs(true);
+        setPaletteOpen(false);
+      }}
+    />
+  );
+
+  function renderContent() {
+    switch (view) {
+      case "hardware":
+        return <HardwareProfiles />;
+      case "library":
+        return <LocalLibrary />;
+      case "discover":
+        return <Discover initialMode={discoverMode} initialQuery={discoverQuery} />;
+      case "downloads":
+        return <Downloads />;
+      case "runners":
+        return <RunnerSettings />;
+      case "chat":
+        return <Chat />;
+      case "manual":
+        return <Manual />;
+      case "about":
+        return <About />;
+      case "settings":
+        return <Settings />;
+      default:
+        return null;
+    }
   }
 
-  if (view === "library") {
+  function renderDashboard() {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {nav}
-        <LocalLibrary />
-        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
-      </div>
-    );
-  }
-
-  if (view === "discover") {
-    return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {nav}
-        <Discover />
-        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
-      </div>
-    );
-  }
-
-  if (view === "downloads") {
-    return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {nav}
-        <Downloads />
-        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
-      </div>
-    );
-  }
-
-  if (view === "runners") {
-    return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {nav}
-        <RunnerSettings />
-        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
-      </div>
-    );
-  }
-
-  if (view === "chat") {
-    return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {nav}
-        <Chat />
-        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
-      </div>
-    );
-  }
-
-  if (view === "manual") {
-    return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {nav}
-        <Manual />
-        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
-      </div>
-    );
-  }
-
-  if (view === "about") {
-    return (
-      <div className="min-h-screen bg-gray-900 text-gray-100">
-        {nav}
-        <About />
-        {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-900 text-gray-100">
-      {nav}
-
       <main className="mx-auto max-w-7xl p-8">
         <header className="mb-8">
           <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -455,7 +446,7 @@ function App() {
           >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Settings className="h-5 w-5 text-purple-400" />
+                <Settings2 className="h-5 w-5 text-purple-400" />
                 Runner Settings
               </h2>
               <Activity className="h-5 w-5 text-purple-400" />
@@ -498,6 +489,22 @@ function App() {
           </button>
 
           <button
+            onClick={() => setView("settings")}
+            className="rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-sm text-left hover:bg-gray-800/80 transition-colors"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Settings2 className="h-5 w-5 text-cyan-400" />
+                Settings
+              </h2>
+              <Activity className="h-5 w-5 text-cyan-400" />
+            </div>
+            <p className="text-gray-400">
+              Configure downloads, runner paths, Hugging Face token, and theme.
+            </p>
+          </button>
+
+          <button
             onClick={() => setView("about")}
             className="rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-sm text-left hover:bg-gray-800/80 transition-colors"
           >
@@ -514,8 +521,16 @@ function App() {
           </button>
         </section>
       </main>
+    );
+  }
 
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-100">
+      {nav}
+      {view === "dashboard" ? renderDashboard() : renderContent()}
+      {commandPalette}
       {showLogs && <LogsPanel logs={logs} onClear={clear} onClose={() => setShowLogs(false)} />}
+      <UpdateNotification />
     </div>
   );
 }

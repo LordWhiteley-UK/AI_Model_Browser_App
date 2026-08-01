@@ -19,6 +19,8 @@ from services.launcher import SUPPORTED_RUNNERS, build_launcher_command
 from services.local_scanner import scan_folders
 from services.runner_detector import apply_overrides, detect_all_runners, detect_ollama
 from services.chat_service import chat_stream
+from services.settings_service import get_all_settings, set_setting
+from services.url_parser import list_files_from_url
 from models.runner_settings import RunnerPathOverride
 
 download_manager = DownloadManager()
@@ -481,6 +483,33 @@ async def chat_endpoint(request: ChatRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+class SettingValue(BaseModel):
+    value: str | None = None
+
+
+class UrlRequest(BaseModel):
+    url: str
+
+
+@app.get("/api/settings")
+def get_settings():
+    return get_all_settings()
+
+
+@app.put("/api/settings/{key}")
+def update_setting(key: str, payload: SettingValue):
+    set_setting(key, payload.value)
+    return {"key": key, "value": payload.value}
+
+
+@app.post("/api/discover/url")
+def discover_url(request: UrlRequest):
+    try:
+        return list_files_from_url(request.url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 if __name__ == "__main__":

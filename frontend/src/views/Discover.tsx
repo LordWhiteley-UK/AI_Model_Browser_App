@@ -1,5 +1,6 @@
+
 import { useEffect, useMemo, useState } from "react";
-import { searchModels, startDownloadJob } from "../api/client";
+import { discoverUrl, searchModels, startDownloadJob } from "../api/client";
 import type { DiscoverResult, ModelFamily } from "../types";
 import ModelAuthorIcon from "../components/ModelAuthorIcon";
 import {
@@ -11,6 +12,7 @@ import {
   ExternalLink,
   Globe,
   Heart,
+  Link2,
   Loader2,
   Search,
   TrendingUp,
@@ -44,12 +46,13 @@ const FORMAT_FILTERS = [
   "EXL2",
 ];
 
-type DiscoverMode = "popular" | "trending" | "search";
+type DiscoverMode = "popular" | "trending" | "search" | "url";
 
 const MODES: { id: DiscoverMode; label: string; icon: typeof Zap }[] = [
   { id: "popular", label: "Popular", icon: Zap },
   { id: "trending", label: "Trending", icon: TrendingUp },
   { id: "search", label: "Search", icon: Search },
+  { id: "url", label: "Import URL", icon: Link2 },
 ];
 
 function formatBytes(bytes: number): string {
@@ -104,17 +107,28 @@ function CompatibilityBadge({
   );
 }
 
-export default function Discover() {
-  const [mode, setMode] = useState<DiscoverMode>("popular");
-  const [query, setQuery] = useState("");
+export default function Discover({
+  initialMode,
+  initialQuery,
+}: {
+  initialMode?: "url" | "search";
+  initialQuery?: string;
+}) {
+  const [mode, setMode] = useState<DiscoverMode>(initialMode ?? "popular");
+  const [query, setQuery] = useState(initialQuery ?? "");
+  const [urlInput, setUrlInput] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeFormat, setActiveFormat] = useState("All");
   const [result, setResult] = useState<DiscoverResult | null>(null);
+  const [urlResult, setUrlResult] = useState<
+    Awaited<ReturnType<typeof discoverUrl>> | null
+  >(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedFamilies, setExpandedFamilies] = useState<Set<string>>(
     new Set(),
   );
+  const [expandedUrlFiles, setExpandedUrlFiles] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadResult, setDownloadResult] = useState<string | null>(null);
   const [downloadTarget, setDownloadTarget] = useState("default");
@@ -122,12 +136,26 @@ export default function Discover() {
   function setModeAndClear(newMode: DiscoverMode) {
     setMode(newMode);
     if (newMode !== "search") setQuery("");
+    if (newMode !== "url") setUrlInput("");
+    setUrlResult(null);
+    setExpandedUrlFiles(false);
   }
 
   async function performSearch() {
     setLoading(true);
     setError(null);
     try {
+      if (mode === "url") {
+        if (!urlInput.trim()) {
+          setUrlResult(null);
+          return;
+        }
+        const data = await discoverUrl(urlInput.trim());
+        setUrlResult(data);
+        setExpandedUrlFiles(true);
+        return;
+      }
+
       const capabilityFilter =
         activeFilter === "All" ? undefined : activeFilter;
       const formatFilter = activeFormat === "All" ? undefined : activeFormat;
@@ -162,13 +190,21 @@ export default function Discover() {
       const message = err instanceof Error ? err.message : "Search failed";
       setError(message);
       setResult(null);
+      setUrlResult(null);
       setExpandedFamilies(new Set());
+      setExpandedUrlFiles(false);
     } finally {
       setLoading(false);
     }
   }
 
+
   useEffect(() => {
+    if (mode === "url") {
+      setResult(null);
+      setExpandedFamilies(new Set());
+      return;
+    }
     performSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, activeFilter, activeFormat]);
@@ -180,6 +216,10 @@ export default function Discover() {
       else next.add(id);
       return next;
     });
+  }
+
+  function toggleUrlFiles() {
+    setExpandedUrlFiles((prev) => !prev);
   }
 
   async function handleDownload(
@@ -254,69 +294,103 @@ export default function Discover() {
         </div>
 
         <div className="flex flex-col gap-4 md:flex-row md:items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === "Enter" && mode === "search" && performSearch()
-              }
-              placeholder={
-                mode === "search"
-                  ? "Search Hugging Face (e.g. llama, qwen, mistral)"
-                  : "Switch to Search to type a query"
-              }
-              disabled={mode !== "search"}
-              className="w-full rounded-lg border border-gray-600 bg-gray-900 pl-9 pr-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none disabled:opacity-50"
-            />
-          </div>
-          <button
-            onClick={performSearch}
-            disabled={loading || mode !== "search"}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Search className="w-4 h-4" />
-            )}
-            {loading ? "Searching..." : "Search"}
-          </button>
+          {mode === "url" ? (
+            <>
+              <div className="relative flex-1">
+                <Link2 className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && performSearch()}
+                  placeholder="https://huggingface.co/owner/repo or link to a file"
+                  className="w-full rounded-lg border border-gray-600 bg-gray-900 pl-9 pr-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <button
+                onClick={performSearch}
+                disabled={loading || !urlInput.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Link2 className="w-4 h-4" />
+                )}
+                {loading ? "Importing..." : "Import"}
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && mode === "search" && performSearch()
+                  }
+                  placeholder={
+                    mode === "search"
+                      ? "Search Hugging Face (e.g. llama, qwen, mistral)"
+                      : "Switch to Search to type a query"
+                  }
+                  disabled={mode !== "search"}
+                  className="w-full rounded-lg border border-gray-600 bg-gray-900 pl-9 pr-4 py-2 text-sm text-white placeholder:text-gray-500 focus:border-blue-500 focus:outline-none disabled:opacity-50"
+                />
+              </div>
+              <button
+                onClick={performSearch}
+                disabled={loading || mode !== "search"}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+                {loading ? "Searching..." : "Search"}
+              </button>
+            </>
+          )}
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
-          {CAPABILITY_FILTERS.map((cap) => (
-            <button
-              key={cap}
-              onClick={() => setActiveFilter(cap)}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                activeFilter === cap
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
-            >
-              {cap}
-            </button>
-          ))}
-        </div>
+        {mode !== "url" && (
+          <>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {CAPABILITY_FILTERS.map((cap) => (
+                <button
+                  key={cap}
+                  onClick={() => setActiveFilter(cap)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    activeFilter === cap
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  {cap}
+                </button>
+              ))}
+            </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
-          {FORMAT_FILTERS.map((fmt) => (
-            <button
-              key={fmt}
-              onClick={() => setActiveFormat(fmt)}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
-                activeFormat === fmt
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-              }`}
-            >
-              {fmt === "All" ? "All formats" : fmt}
-            </button>
-          ))}
-        </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {FORMAT_FILTERS.map((fmt) => (
+                <button
+                  key={fmt}
+                  onClick={() => setActiveFormat(fmt)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    activeFormat === fmt
+                      ? "bg-purple-600 text-white"
+                      : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                  }`}
+                >
+                  {fmt === "All" ? "All formats" : fmt}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="text-sm text-gray-400">Download to:{" "}</span>
@@ -335,7 +409,7 @@ export default function Discover() {
           ))}
         </div>
 
-        {result && (
+        {result && mode !== "url" && (
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-gray-400">
             <span>
               Active profile:{" "}
@@ -362,7 +436,81 @@ export default function Discover() {
       </section>
 
       <section className="space-y-4">
-        {families.length === 0 && !loading && !error && (
+        {mode === "url" && urlResult && (
+          <div className="rounded-xl border border-gray-700 bg-gray-800 p-6">
+            <div
+              className="mb-4 flex cursor-pointer items-center justify-between"
+              onClick={toggleUrlFiles}
+            >
+              <div>
+                <h3 className="text-lg font-semibold text-white">{urlResult.repo_id}</h3>
+                <p className="text-sm text-gray-400">{urlResult.files.length} file(s) found</p>
+              </div>
+              <span className="text-sm text-blue-400">{expandedUrlFiles ? "Collapse" : "Expand"}</span>
+            </div>
+
+            {expandedUrlFiles && (
+              <div className="space-y-3">
+                {urlResult.files.map((file) => {
+                  const id = `${urlResult.family_id}/${file.filename}`;
+                  return (
+                    <div
+                      key={file.filename}
+                      className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-900 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-white">
+                          {file.filename}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {file.format}
+                          {file.quant_method ? ` · ${file.quant_method}` : ""} ·{" "}
+                          {formatBytes(file.size_bytes)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => copyUrl(file.download_url)}
+                          className="rounded p-2 text-gray-400 hover:bg-gray-800 hover:text-white"
+                          title="Copy URL"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            handleDownload(
+                              file.download_url,
+                              file.filename,
+                              urlResult.family_id,
+                            )
+                          }
+                          disabled={downloadingId === id}
+                          className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+                        >
+                          {downloadingId === id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Download className="h-3.5 w-3.5" />
+                          )}
+                          {downloadingId === id ? "Queuing…" : "Download"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {mode === "url" && !urlResult && !loading && !error && (
+          <div className="rounded-lg border border-dashed border-gray-600 p-12 text-center text-gray-400">
+            <Link2 className="mx-auto mb-3 w-10 h-10 text-gray-600" />
+            <p>Paste a Hugging Face model URL and click Import to list downloadable files.</p>
+          </div>
+        )}
+
+        {families.length === 0 && !loading && !error && mode !== "url" && (
           <div className="rounded-lg border border-dashed border-gray-600 p-12 text-center text-gray-400">
             {mode === "popular" ? (
               <Zap className="mx-auto mb-3 w-10 h-10 text-gray-600" />

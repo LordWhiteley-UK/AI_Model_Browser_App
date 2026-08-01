@@ -3,6 +3,7 @@ from pathlib import Path
 
 from sqlmodel import SQLModel, Session, create_engine
 
+from models.app_settings import AppSetting
 from models.hardware import HardwareProfile
 from models.inventory import LocalInventory
 from models.model_family import ModelFamily

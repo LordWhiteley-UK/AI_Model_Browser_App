@@ -172,6 +172,19 @@ export async function importToOllama(
   );
 }
 
+export interface UrlDiscoveryResult {
+  repo_id: string;
+  family_id: string;
+  files: Array<{
+    filename: string;
+    format: string;
+    quant_method?: string;
+    size_bytes: number;
+    download_url: string;
+    estimated_vram_mb?: number;
+  }>;
+}
+
 export async function searchModels(
   query: string,
   capability?: string,
@@ -186,6 +199,10 @@ export async function searchModels(
   if (sort) params.set("sort", sort);
   params.set("limit", String(limit));
   return apiGet<DiscoverResult>(`/api/discover/search?${params.toString()}`);
+}
+
+export async function discoverUrl(url: string): Promise<UrlDiscoveryResult> {
+  return apiPost<UrlDiscoveryResult>("/api/discover/url", { url });
 }
 
 export async function startDownloadJob(
@@ -230,6 +247,19 @@ export async function updateDownloadSettings(
 ): Promise<DownloadSettings> {
   return apiPut<DownloadSettings>("/api/download/settings", {
     bandwidth_cap_mbps: bandwidthCapMbps,
+  });
+}
+
+export async function getSettings(): Promise<Record<string, string | null>> {
+  return apiGet<Record<string, string | null>>("/api/settings");
+}
+
+export async function updateSetting(
+  key: string,
+  value: string | null,
+): Promise<{ key: string; value: string | null }> {
+  return apiPut<{ key: string; value: string | null }>(`/api/settings/${key}`, {
+    value,
   });
 }
 
