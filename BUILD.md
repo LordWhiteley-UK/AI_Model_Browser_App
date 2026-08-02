@@ -61,6 +61,11 @@ npm run tauri -- build
 
 Outputs are written to `src-tauri/target/release/bundle/nsis/` and `src-tauri/target/release/bundle/msi/`.
 
+Notes for Windows:
+- The first build requires the **Microsoft Visual C++ (MSVC) toolchain**. On a clean machine install the **Build Tools for Visual Studio 2022** workload "Desktop development with C++".
+- The backend sidecar will be named `src-tauri/binaries/backend-x86_64-pc-windows-msvc.exe`.
+- The SQLite database is stored under `%APPDATA%\com.aimodelbrowser.desktop\backend\models.db` when the app is launched through Tauri.
+
 ## Linux build
 
 On an Ubuntu machine or GitHub Actions runner:

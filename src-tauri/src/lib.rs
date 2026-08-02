@@ -11,7 +11,8 @@ fn spawn_backend(app: &AppHandle) -> Result<CommandChild, String> {
     std::fs::create_dir_all(&db_dir).map_err(|e| e.to_string())?;
 
     let db_path = db_dir.join("models.db");
-    let db_url = format!("sqlite:///{}", db_path.to_string_lossy());
+    // SQLAlchemy expects an absolute POSIX-style path after sqlite:/// on all platforms.
+    let db_url = format!("sqlite:/// {}", db_path.to_string_lossy().replace('\\', "/"));
 
     let sidecar = app
         .shell()

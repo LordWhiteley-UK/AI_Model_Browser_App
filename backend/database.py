@@ -15,13 +15,15 @@ DEFAULT_DB_PATH = DEFAULT_DB_DIR / "models.db"
 
 DATABASE_URL = os.environ.get(
     "AI_MODEL_BROWSER_DB_URL",
-    f"sqlite:///{DEFAULT_DB_PATH}",
+    f"sqlite:///{DEFAULT_DB_PATH.as_posix()}",
 )
 
 
 def _ensure_db_dir():
     if DATABASE_URL.startswith("sqlite:///"):
-        path = Path(DATABASE_URL.replace("sqlite:///", ""))
+        # Strip the three-slash prefix and reconstruct an OS-native path.
+        raw_path = DATABASE_URL.replace("sqlite:///", "", 1)
+        path = Path(raw_path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
 engine = create_engine(

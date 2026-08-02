@@ -24,7 +24,7 @@ AI Model Browser is a desktop app that wraps a Python FastAPI backend inside a T
 - **Test Chat** — Send prompts to a local model and stream the response back in the app.
 - **Backend Logs** — Open a live log panel to inspect the bundled backend sidecar.
 - **User Manual** — Built-in help page covering every section of the app.
-- **Cross-platform builds** — GitHub Actions builds macOS, Windows, and Linux bundles.
+- **Cross-platform builds** — GitHub Actions builds and uploads separate macOS, Windows, and Linux bundles.
 
 ## Project layout
 
@@ -83,7 +83,53 @@ The resulting app is at:
 src-tauri/target/release/bundle/macos/AI Model Browser.app
 ```
 
-See `BUILD.md` for Windows, Linux, and CI instructions.
+### Windows
+
+```powershell
+# Build the backend sidecar
+python -m venv venv-build
+.\venv-build\Scripts\pip install -r backend\requirements.txt pyinstaller
+.\venv-build\Scripts\python backend\build_sidecar.py
+
+# Install frontend dependencies and build the installer
+cd frontend
+npm install
+npm run tauri -- build
+```
+
+Installers are placed in:
+
+```
+src-tauri/target/release/bundle/nsis/AI Model Browser_<version>_x64-setup.exe
+src-tauri/target/release/bundle/msi/AI Model Browser_<version>_x64_en-US.msi
+```
+
+### Linux
+
+```bash
+# Install system dependencies
+sudo apt-get update
+sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+# Build the backend sidecar
+python3.11 -m venv venv-build
+./venv-build/bin/pip install -r backend/requirements.txt pyinstaller
+./venv-build/bin/python backend/build_sidecar.py
+
+# Install frontend dependencies and build the installer
+cd frontend
+npm install
+npm run tauri -- build
+```
+
+Installers are placed in:
+
+```
+src-tauri/target/release/bundle/deb/
+src-tauri/target/release/bundle/appimage/
+```
+
+See `BUILD.md` for full local build and CI instructions.
 
 ## Usage
 
@@ -125,7 +171,13 @@ The Vite dev server runs at `http://localhost:1420`. The backend runs at `http:/
 
 ## Building releases
 
-GitHub Actions builds release bundles for macOS, Windows, and Linux on every push to `main`. Artifacts are uploaded per platform. To trigger manually, go to **Actions → Build AI Model Browser → Run workflow** in GitHub.
+GitHub Actions builds release bundles for macOS, Windows, and Linux on every push to `main`. Artifacts are uploaded per platform under these names:
+
+- `tauri-bundle-macos-latest`
+- `tauri-bundle-windows-latest`
+- `tauri-bundle-ubuntu-latest`
+
+To trigger manually, go to **Actions → Build AI Model Browser → Run workflow** in GitHub.
 
 For local release builds, see `BUILD.md`.
 

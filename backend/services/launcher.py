@@ -1,4 +1,6 @@
 import os
+import platform
+from pathlib import Path
 from typing import Any
 
 SUPPORTED_RUNNERS = {
@@ -20,6 +22,10 @@ def _model_name_from_path(path: str) -> str:
     return name.lower().replace(" ", "-").replace("_", "-")
 
 
+def _ollama_modelfile_text(model_path: str) -> str:
+    return f"FROM {model_path}\n"
+
+
 def build_launcher_command(runner: str, local_path: str) -> dict[str, Any]:
     if runner not in SUPPORTED_RUNNERS:
         raise ValueError(f"Unsupported runner: {runner}")
@@ -27,28 +33,52 @@ def build_launcher_command(runner: str, local_path: str) -> dict[str, Any]:
     path = local_path
     quoted = _quote(path)
     model_name = _model_name_from_path(path)
+    system = platform.system().lower()
 
-    commands = {
-        "ollama": (
-            f"cat > {model_name}.Modelfile <<'EOF'\n"
-            f"FROM {path}\n"
-            f"EOF\n"
-            f"ollama create {model_name} -f {model_name}.Modelfile\n"
-            f"ollama run {model_name}"
-        ),
-        "llama_cpp": (
-            f"./llama-server -m {quoted} -n 512 --host 127.0.0.1 --port 8080"
-        ),
-        "lm_studio": (
-            f"# In LM Studio: My Models -> Add model -> select {quoted}"
-        ),
-        "koboldcpp": (
-            f"./koboldcpp {quoted} --usecublas --gpulayers 100 --port 5001"
-        ),
-        "vllm": (
-            f"vllm serve {quoted} --dtype auto --max-model-len 4096"
-        ),
-    }
+    if system == "windows":
+        commands = {
+            "ollama": (
+                f"# PowerShell snippet to import into Ollama\n"
+                f"$modelfile = '{model_name}.Modelfile'; "
+                f"Set-Content -Path $modelfile -Value \"FROM {path}\"; "
+                f"ollama create {model_name} -f $modelfile; "
+                f"ollama run {model_name}"
+            ),
+            "llama_cpp": (
+                f"llama-server.exe -m {quoted} -n 512 --host 127.0.0.1 --port 8080"
+            ),
+            "lm_studio": (
+                f"# In LM Studio: My Models -> Add model -> select {quoted}"
+            ),
+            "koboldcpp": (
+                f"koboldcpp.exe {quoted} --usecublas --gpulayers 100 --port 5001"
+            ),
+            "vllm": (
+                f"vllm serve {quoted} --dtype auto --max-model-len 4096"
+            ),
+        }
+    else:
+        commands = {
+            "ollama": (
+                f"cat > {model_name}.Modelfile <<'EOF'\n"
+                f"FROM {path}\n"
+                f"EOF\n"
+                f"ollama create {model_name} -f {model_name}.Modelfile\n"
+                f"ollama run {model_name}"
+            ),
+            "llama_cpp": (
+                f"./llama-server -m {quoted} -n 512 --host 127.0.0.1 --port 8080"
+            ),
+            "lm_studio": (
+                f"# In LM Studio: My Models -> Add model -> select {quoted}"
+            ),
+            "koboldcpp": (
+                f"./koboldcpp {quoted} --usecublas --gpulayers 100 --port 5001"
+            ),
+            "vllm": (
+                f"vllm serve {quoted} --dtype auto --max-model-len 4096"
+            ),
+        }
 
     return {
         "runner": runner,
