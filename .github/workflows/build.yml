@@ -100,8 +100,12 @@ jobs:
           mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
         shell: bash
 
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0" --locked
+
       - name: Build Tauri app
-        run: npm exec --prefix frontend -- tauri build
+        run: cargo tauri build
+        working-directory: src-tauri
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
