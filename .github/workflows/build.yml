@@ -101,8 +101,7 @@ jobs:
         shell: bash
 
       - name: Build Tauri app
-        run: npm exec --prefix ../frontend -- tauri build
-        working-directory: src-tauri
+        run: npm exec --prefix frontend -- tauri build
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
