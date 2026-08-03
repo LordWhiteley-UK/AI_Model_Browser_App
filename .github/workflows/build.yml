@@ -102,7 +102,7 @@ jobs:
 
       - name: Build Tauri app
         run: npm run tauri -- build
-        working-directory: src-tauri
+        working-directory: frontend
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
