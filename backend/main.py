@@ -51,8 +51,14 @@ def health():
     return {
         "status": "ok",
         "service": "ai-model-browser-backend",
-        "version": "0.1.0",
+        "version": "0.1.2",
     }
+
+
+class FrontendLogRequest(BaseModel):
+    level: str = "info"
+    message: str
+    context: dict[str, Any] | None = None
 
 
 @app.post("/api/log/frontend")
@@ -134,12 +140,6 @@ class CreateProfileRequest(BaseModel):
     memory_bandwidth_gbps: float | None = None
     vram_bandwidth_gbps: float | None = None
     gpu_compute_fp16_tflops: float | None = None
-
-
-class FrontendLogRequest(BaseModel):
-    level: str = "info"
-    message: str
-    context: dict[str, Any] | None = None
 
 
 class SetPreferredRunnerRequest(BaseModel):
