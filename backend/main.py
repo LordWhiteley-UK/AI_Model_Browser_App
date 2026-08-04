@@ -28,7 +28,7 @@ from models.runner_settings import RunnerPathOverride
 
 download_manager = DownloadManager()
 
-app = FastAPI(title="AI Model Browser API", version="0.1.0")
+app = FastAPI(title="AI Model Browser API", version="0.1.2")
 
 app.add_middleware(
     CORSMiddleware,
