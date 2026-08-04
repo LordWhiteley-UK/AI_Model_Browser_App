@@ -12,7 +12,7 @@ fn spawn_backend(app: &AppHandle) -> Result<CommandChild, String> {
 
     let db_path = db_dir.join("models.db");
     // SQLAlchemy expects an absolute POSIX-style path after sqlite:/// on all platforms.
-    let db_url = format!("sqlite:/// {}", db_path.to_string_lossy().replace('\\', "/"));
+    let db_url = format!("sqlite:///{}", db_path.to_string_lossy().replace('\\', "/"));
 
     let sidecar = app
         .shell()
