@@ -4,6 +4,15 @@ export interface HealthStatus {
   version: string;
 }
 
+export interface TokenPrediction {
+  generation_tok_s: number;
+  prefill_tok_s: number | null;
+  bottleneck: "memory" | "compute" | "unknown";
+  memory_bound: boolean;
+  using_default_specs: boolean;
+  effective_bandwidth_gbps: number;
+}
+
 export interface HardwareProfile {
   id: number;
   name: string;
@@ -15,6 +24,9 @@ export interface HardwareProfile {
   total_ram_gb: number;
   total_vram_gb: number;
   is_unified_memory: boolean;
+  memory_bandwidth_gbps: number | null;
+  vram_bandwidth_gbps: number | null;
+  gpu_compute_fp16_tflops: number | null;
   created_at: string;
 }
 
@@ -26,6 +38,9 @@ export interface SystemSpecs {
   gpu_name: string | null;
   is_unified_memory: boolean;
   detected: boolean;
+  memory_bandwidth_gbps?: number;
+  vram_bandwidth_gbps?: number;
+  gpu_compute_fp16_tflops?: number;
 }
 
 export interface LocalInventoryItem {
@@ -58,10 +73,13 @@ export interface ModelFile {
   filename: string;
   format: string;
   quant_method: string | null;
+  quant_bits: number | null;
   size_bytes: number;
   download_url: string;
   estimated_vram_mb: number | null;
+  params_billions: number | null;
   compatibility: CompatibilityScore;
+  prediction: TokenPrediction;
 }
 
 export interface ModelFamily {
@@ -87,7 +105,14 @@ export interface DiscoverResult {
   count: number;
   active_profile: Pick<
     HardwareProfile,
-    "id" | "name" | "total_ram_gb" | "total_vram_gb" | "is_unified_memory"
+    | "id"
+    | "name"
+    | "total_ram_gb"
+    | "total_vram_gb"
+    | "is_unified_memory"
+    | "memory_bandwidth_gbps"
+    | "vram_bandwidth_gbps"
+    | "gpu_compute_fp16_tflops"
   >;
   families: ModelFamily[];
 }

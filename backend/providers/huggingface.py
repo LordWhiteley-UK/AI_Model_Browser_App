@@ -50,6 +50,40 @@ def _parse_quant_method(filename: str) -> str | None:
     return None
 
 
+def _parse_params_billions(repo_id: str, filename: str | None = None) -> float | None:
+    """Infer parameter count from common naming patterns like 7B, 13B, 70B."""
+    text = f"{repo_id} {filename or ''}"
+    # Match patterns like 7B, 7.5B, 70B, 8x7B, 405B.
+    match = re.search(r"\b(\d+(?:\.\d+)?)\s?[bB]\b", text)
+    if match:
+        try:
+            return float(match.group(1))
+        except ValueError:
+            pass
+    return None
+
+
+def _quant_bits_from_method(quant_method: str | None) -> int | None:
+    if not quant_method:
+        return None
+    q = quant_method.upper()
+    if q.startswith("Q4") or q.startswith("IQ4") or "4BIT" in q:
+        return 4
+    if q.startswith("Q5") or q.startswith("IQ5"):
+        return 5
+    if q.startswith("Q6") or q.startswith("IQ6"):
+        return 6
+    if q.startswith("Q8") or q.startswith("IQ8"):
+        return 8
+    if q.startswith("Q2") or q.startswith("IQ2"):
+        return 2
+    if "16" in q or "F16" in q or "FP16" in q:
+        return 16
+    if "BF16" in q:
+        return 16
+    return None
+
+
 def _detect_format(filename: str, repo_id: str = "") -> str:
     ext = os.path.splitext(filename)[1].lower()
     fmt = {
@@ -122,8 +156,25 @@ def _fetch_readme_summary(repo_id: str) -> str | None:
 
 
 class HuggingFaceProvider(BaseProvider):
+    # Format keywords used to target quantized/converted model repositories.
+    FORMAT_KEYWORDS: dict[str, str] = {
+        "GGUF": "gguf",
+        "EXL2": "exl2",
+        "MLX": "mlx",
+    }
+
     def __init__(self):
         self.api = HfApi()
+
+    def _build_effective_query(self, query: str, format: str | None) -> str:
+        keyword = self.FORMAT_KEYWORDS.get(format or "")
+        if not keyword:
+            return query
+        query = query.strip()
+        keyword_lower = keyword.lower()
+        if keyword_lower in query.lower():
+            return query
+        return f"{query} {keyword}".strip() if query else keyword
 
     def search(
         self,
@@ -133,10 +184,12 @@ class HuggingFaceProvider(BaseProvider):
         limit: int = 20,
         sort: str = "downloads",
     ) -> list[dict[str, Any]]:
-        # Empty query + sort="downloads" returns the most popular models;
-        # sort="trendingScore" returns the currently trending models.
+        # Some formats (GGUF, EXL2, MLX) usually live in dedicated quantized
+        # repos. Searching the global top downloads for them almost always
+        # returns nothing, so append the format keyword to the query.
+        effective_query = self._build_effective_query(query, format)
         models = self.api.list_models(
-            search=query,
+            search=effective_query,
             limit=limit,
             sort=sort,
             full=True,
@@ -175,7 +228,7 @@ class HuggingFaceProvider(BaseProvider):
                 "name": model.modelId.split("/")[-1],
                 "author": model.modelId.split("/")[0],
                 "architecture": None,
-                "params_billions": None,
+                "params_billions": _parse_params_billions(model.modelId),
                 "context_length": None,
                 "capabilities": inferred_capability,
                 "description": description,
@@ -206,12 +259,15 @@ class HuggingFaceProvider(BaseProvider):
 
             size = getattr(sibling, "size", 0) or 0
             download_url = hf_hub_url(repo_id, filename=path, repo_type="model")
+            quant_method = _parse_quant_method(filename)
             files.append({
                 "filename": filename,
                 "format": _detect_format(filename, repo_id),
-                "quant_method": _parse_quant_method(filename),
+                "quant_method": quant_method,
                 "size_bytes": size,
                 "download_url": download_url,
                 "estimated_vram_mb": round(size / (1024 ** 2) * 1.15, 2) if size else None,
+                "params_billions": _parse_params_billions(repo_id, filename),
+                "quant_bits": _quant_bits_from_method(quant_method),
             })
         return files

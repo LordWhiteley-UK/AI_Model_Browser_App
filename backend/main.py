@@ -1,12 +1,14 @@
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import StreamingResponse
 import json
+import logging
 import subprocess
 from typing import Literal
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from data.hardware_specs import fill_profile_specs, lookup_hardware_specs
 from database import get_session, init_db
 from models.hardware import HardwareProfile
 from models.inventory import LocalInventory
@@ -20,6 +22,7 @@ from services.local_scanner import scan_folders
 from services.runner_detector import apply_overrides, detect_all_runners, detect_ollama
 from services.chat_service import chat_stream
 from services.settings_service import get_all_settings, set_setting
+from services.tokens_per_second import attach_prediction_to_file, estimate_tokens_per_second
 from services.url_parser import list_files_from_url
 from models.runner_settings import RunnerPathOverride
 
@@ -50,6 +53,15 @@ def health():
         "service": "ai-model-browser-backend",
         "version": "0.1.0",
     }
+
+
+@app.post("/api/log/frontend")
+def log_frontend(request: FrontendLogRequest):
+    """Receive frontend log events so they are captured in the backend log file."""
+    prefix = f"[frontend {request.level}]"
+    context = f" {request.context}" if request.context else ""
+    print(f"{prefix} {request.message}{context}")
+    return {"logged": True}
 
 
 @app.get("/api/hardware/profiles")
@@ -90,7 +102,20 @@ def set_active_profile(profile_id: int, session: Session = Depends(get_session))
 
 @app.get("/api/hardware/system")
 def get_system_specs():
-    return detect_system_specs()
+    specs = detect_system_specs()
+    predicted = lookup_hardware_specs(
+        specs.get("cpu_name"),
+        specs.get("gpu_name"),
+        specs.get("is_unified_memory", False),
+    )
+    specs.update(
+        {
+            k: v
+            for k, v in predicted.items()
+            if k in ("memory_bandwidth_gbps", "vram_bandwidth_gbps", "gpu_compute_fp16_tflops")
+        }
+    )
+    return specs
 
 
 class ScanRequest(BaseModel):
@@ -106,6 +131,15 @@ class CreateProfileRequest(BaseModel):
     total_ram_gb: float
     total_vram_gb: float = 0.0
     is_unified_memory: bool = False
+    memory_bandwidth_gbps: float | None = None
+    vram_bandwidth_gbps: float | None = None
+    gpu_compute_fp16_tflops: float | None = None
+
+
+class FrontendLogRequest(BaseModel):
+    level: str = "info"
+    message: str
+    context: dict[str, Any] | None = None
 
 
 class SetPreferredRunnerRequest(BaseModel):
@@ -122,15 +156,23 @@ def create_profile(
     if existing:
         raise HTTPException(status_code=409, detail="A profile with this name already exists")
 
+    payload = request.model_dump()
+    # Auto-fill bandwidth/compute fields from the chip-name lookup tables when
+    # the user has not supplied explicit values.
+    fill_profile_specs(payload)
+
     profile = HardwareProfile(
-        name=request.name,
-        os=request.os,
-        cpu_name=request.cpu_name,
-        gpu_name=request.gpu_name,
-        ram_type=request.ram_type,
-        total_ram_gb=request.total_ram_gb,
-        total_vram_gb=request.total_vram_gb,
-        is_unified_memory=request.is_unified_memory,
+        name=payload["name"],
+        os=payload["os"],
+        cpu_name=payload.get("cpu_name"),
+        gpu_name=payload.get("gpu_name"),
+        ram_type=payload.get("ram_type"),
+        total_ram_gb=payload["total_ram_gb"],
+        total_vram_gb=payload.get("total_vram_gb", 0.0),
+        is_unified_memory=payload.get("is_unified_memory", False),
+        memory_bandwidth_gbps=payload.get("memory_bandwidth_gbps"),
+        vram_bandwidth_gbps=payload.get("vram_bandwidth_gbps"),
+        gpu_compute_fp16_tflops=payload.get("gpu_compute_fp16_tflops"),
     )
     session.add(profile)
     session.commit()
@@ -171,6 +213,31 @@ def get_inventory_item(item_id: int, session: Session = Depends(get_session)):
     if not item:
         raise HTTPException(status_code=404, detail="Inventory item not found")
     return item
+
+
+@app.get("/api/inventory/{item_id}/prediction")
+def get_inventory_prediction(item_id: int, session: Session = Depends(get_session)):
+    item = session.get(LocalInventory, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    active_profile = session.exec(
+        select(HardwareProfile).where(HardwareProfile.is_active == True)
+    ).first()
+    if not active_profile:
+        raise HTTPException(status_code=404, detail="No active hardware profile")
+
+    prediction = estimate_tokens_per_second(
+        file_size_bytes=item.size_bytes,
+        quant_method=None,
+        params_billions=None,
+        profile=active_profile,
+    )
+    return {
+        "inventory_item_id": item_id,
+        "filename": item.filename,
+        "prediction": prediction,
+    }
 
 
 @app.post("/api/inventory/{item_id}/runner")
@@ -245,6 +312,7 @@ def discover_search(
             file["compatibility"] = score_compatibility(
                 file.get("size_bytes", 0), active_profile
             )
+            attach_prediction_to_file(file, active_profile)
 
     return {
         "query": query,
@@ -258,6 +326,9 @@ def discover_search(
             "total_ram_gb": active_profile.total_ram_gb,
             "total_vram_gb": active_profile.total_vram_gb,
             "is_unified_memory": active_profile.is_unified_memory,
+            "memory_bandwidth_gbps": active_profile.memory_bandwidth_gbps,
+            "vram_bandwidth_gbps": active_profile.vram_bandwidth_gbps,
+            "gpu_compute_fp16_tflops": active_profile.gpu_compute_fp16_tflops,
         },
         "families": families,
     }

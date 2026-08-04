@@ -55,6 +55,18 @@ def _migrate_hardware_profile_columns():
             conn.exec_driver_sql(
                 "ALTER TABLE hardwareprofile ADD COLUMN ram_type VARCHAR"
             )
+        if "memory_bandwidth_gbps" not in columns:
+            conn.exec_driver_sql(
+                "ALTER TABLE hardwareprofile ADD COLUMN memory_bandwidth_gbps FLOAT"
+            )
+        if "vram_bandwidth_gbps" not in columns:
+            conn.exec_driver_sql(
+                "ALTER TABLE hardwareprofile ADD COLUMN vram_bandwidth_gbps FLOAT"
+            )
+        if "gpu_compute_fp16_tflops" not in columns:
+            conn.exec_driver_sql(
+                "ALTER TABLE hardwareprofile ADD COLUMN gpu_compute_fp16_tflops FLOAT"
+            )
         conn.commit()
 
 

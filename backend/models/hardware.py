@@ -17,4 +17,7 @@ class HardwareProfile(SQLModel, table=True):
     total_ram_gb: float = Field(nullable=False)
     total_vram_gb: float = Field(default=0.0, nullable=False)
     is_unified_memory: bool = Field(default=False, nullable=False)
+    memory_bandwidth_gbps: float | None = Field(default=None, nullable=True)
+    vram_bandwidth_gbps: float | None = Field(default=None, nullable=True)
+    gpu_compute_fp16_tflops: float | None = Field(default=None, nullable=True)
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)

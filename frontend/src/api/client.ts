@@ -12,6 +12,7 @@ import type {
   RunnerSettings,
   ScanResult,
   SystemSpecs,
+  TokenPrediction,
 } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -55,6 +56,14 @@ async function apiPost<T>(path: string, body?: unknown): Promise<T> {
     throw new Error(text || `HTTP ${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+export async function logFrontend(level: string, message: string, context?: Record<string, unknown>): Promise<void> {
+  try {
+    await apiPost("/api/log/frontend", { level, message, context });
+  } catch {
+    // ignore logging errors
+  }
 }
 
 async function apiPut<T>(path: string, body?: unknown): Promise<T> {
@@ -110,6 +119,9 @@ export interface CreateProfilePayload {
   total_ram_gb: number;
   total_vram_gb?: number;
   is_unified_memory?: boolean;
+  memory_bandwidth_gbps?: number;
+  vram_bandwidth_gbps?: number;
+  gpu_compute_fp16_tflops?: number;
 }
 
 export async function createHardwareProfile(
@@ -132,6 +144,12 @@ export async function scanInventory(paths: string[]): Promise<ScanResult> {
 
 export async function getInventory(): Promise<LocalInventoryItem[]> {
   return apiGet<LocalInventoryItem[]>("/api/inventory");
+}
+
+export async function getInventoryPrediction(
+  itemId: number,
+): Promise<{ inventory_item_id: number; filename: string; prediction: TokenPrediction }> {
+  return apiGet(`/api/inventory/${itemId}/prediction`);
 }
 
 export async function getLauncherInfo(itemId: number): Promise<LauncherInfo> {

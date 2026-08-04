@@ -1,7 +1,7 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { discoverUrl, searchModels, startDownloadJob } from "../api/client";
-import type { DiscoverResult, ModelFamily } from "../types";
+import { discoverUrl, logFrontend, searchModels, startDownloadJob } from "../api/client";
+import type { DiscoverResult, ModelFamily, ModelFile } from "../types";
 import ModelAuthorIcon from "../components/ModelAuthorIcon";
 import {
   AlertCircle,
@@ -10,6 +10,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Gauge,
   Globe,
   Heart,
   Link2,
@@ -107,6 +108,33 @@ function CompatibilityBadge({
   );
 }
 
+function PredictionBadge({ file }: { file: ModelFile }) {
+  const prediction = file.prediction;
+  if (!prediction) return null;
+
+  const { generation_tok_s, prefill_tok_s, using_default_specs } = prediction;
+  const tooltip = prefill_tok_s
+    ? `Estimated on active profile\nGeneration: ~${generation_tok_s} tok/s\nPrefill: ~${prefill_tok_s} tok/s\nBottleneck: ${prediction.bottleneck}`
+    : `Estimated on active profile\nGeneration: ~${generation_tok_s} tok/s\nParameter count unknown; prefill estimate unavailable`;
+
+  return (
+    <span
+      title={tooltip}
+      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${
+        using_default_specs
+          ? "border-gray-600 bg-gray-800 text-gray-400"
+          : "border-blue-700 bg-blue-900/30 text-blue-300"
+      }`}
+    >
+      <Gauge className="w-3 h-3" />
+      ~{generation_tok_s} tok/s
+      {using_default_specs && (
+        <span className="text-[10px] opacity-70">(est.)</span>
+      )}
+    </span>
+  );
+}
+
 export default function Discover({
   initialMode,
   initialQuery,
@@ -148,11 +176,13 @@ export default function Discover({
       if (mode === "url") {
         if (!urlInput.trim()) {
           setUrlResult(null);
+          setLoading(false);
           return;
         }
         const data = await discoverUrl(urlInput.trim());
         setUrlResult(data);
         setExpandedUrlFiles(true);
+        setLoading(false);
         return;
       }
 
@@ -193,6 +223,13 @@ export default function Discover({
       setUrlResult(null);
       setExpandedFamilies(new Set());
       setExpandedUrlFiles(false);
+      logFrontend("error", "Discover search failed", {
+        mode,
+        query,
+        activeFilter,
+        activeFormat,
+        error: message,
+      });
     } finally {
       setLoading(false);
     }
@@ -417,13 +454,43 @@ export default function Discover({
             </span>
             <span>·</span>
             <span>{result.count} result(s)</span>
+            {(result.active_profile.memory_bandwidth_gbps ||
+              result.active_profile.vram_bandwidth_gbps) && (
+              <span className="text-xs text-gray-500">
+                (
+                {result.active_profile.vram_bandwidth_gbps
+                  ? `${result.active_profile.vram_bandwidth_gbps} GB/s VRAM`
+                  : `${result.active_profile.memory_bandwidth_gbps} GB/s memory`}
+                {result.active_profile.gpu_compute_fp16_tflops
+                  ? ` · ${result.active_profile.gpu_compute_fp16_tflops} FP16 TFLOPS`
+                  : ""}
+                )
+              </span>
+            )}
           </div>
         )}
 
         {error && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg bg-red-900/30 p-3 text-red-200">
-            <AlertCircle className="mt-0.5 w-4 h-4" />
-            {error}
+          <div className="mt-4 rounded-lg bg-red-900/30 p-3 text-red-200">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 w-4 h-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-medium">Search failed</p>
+                <p className="text-sm break-words">{error}</p>
+              </div>
+            </div>
+            <button
+              onClick={performSearch}
+              disabled={loading}
+              className="mt-3 inline-flex items-center gap-1 rounded bg-red-800 px-3 py-1 text-xs font-medium hover:bg-red-700 disabled:opacity-50"
+            >
+              {loading ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Search className="w-3 h-3" />
+              )}
+              Retry
+            </button>
           </div>
         )}
 
@@ -519,13 +586,27 @@ export default function Discover({
             ) : (
               <Search className="mx-auto mb-3 w-10 h-10 text-gray-600" />
             )}
-            <p>
+            <p className="font-medium">
               {mode === "popular"
-                ? "Showing the most popular Hugging Face model families by downloads."
+                ? "No models matched your filters."
                 : mode === "trending"
-                  ? "Showing the top trending Hugging Face model families right now."
-                  : "Type a query above and press Enter to search Hugging Face."}
+                  ? "No trending models matched your filters."
+                  : "No models found for this search."}
             </p>
+            <p className="mt-2 text-sm">
+              {activeFilter !== "All" || activeFormat !== "All"
+                ? `Try switching ${activeFilter !== "All" ? `capability from “${activeFilter}”` : ""}${activeFilter !== "All" && activeFormat !== "All" ? " and " : ""}${activeFormat !== "All" ? `format from “${activeFormat}” to “All formats”` : ""}.`
+                : mode === "search"
+                  ? "Try a different keyword or model name."
+                  : "Quantized formats like GGUF often live in separate repos. Try “All formats” or use Search."}
+            </p>
+          </div>
+        )}
+
+        {loading && (
+          <div className="flex flex-col items-center justify-center gap-3 py-12 text-gray-400">
+            <Loader2 className="w-8 h-8 animate-spin" />
+            <p>Searching Hugging Face…</p>
           </div>
         )}
 
@@ -648,11 +729,12 @@ function FamilyCard({
                         <span>{formatBytes(file.size_bytes)}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <CompatibilityBadge
                         status={file.compatibility.status}
                         label={file.compatibility.label}
                       />
+                      <PredictionBadge file={file} />
                       <button
                         onClick={() => onDownload(file.download_url, file.filename, family.id)}
                         disabled={isDownloading}

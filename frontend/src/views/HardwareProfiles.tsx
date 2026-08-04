@@ -82,6 +82,9 @@ export default function HardwareProfiles() {
     total_ram_gb: 32,
     total_vram_gb: 8,
     is_unified_memory: false,
+    memory_bandwidth_gbps: undefined,
+    vram_bandwidth_gbps: undefined,
+    gpu_compute_fp16_tflops: undefined,
   });
   const [cpuOther, setCpuOther] = useState("");
   const [gpuOther, setGpuOther] = useState("");
@@ -174,6 +177,9 @@ export default function HardwareProfiles() {
       total_ram_gb: 32,
       total_vram_gb: 8,
       is_unified_memory: false,
+      memory_bandwidth_gbps: undefined,
+      vram_bandwidth_gbps: undefined,
+      gpu_compute_fp16_tflops: undefined,
     });
     setCpuOther("");
     setGpuOther("");
@@ -490,6 +496,34 @@ export default function HardwareProfiles() {
                   </div>
                 </div>
 
+                {(profile.memory_bandwidth_gbps ||
+                  profile.vram_bandwidth_gbps ||
+                  profile.gpu_compute_fp16_tflops) && (
+                  <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
+                    {profile.memory_bandwidth_gbps && (
+                      <div className="rounded bg-gray-900/30 p-2">
+                        <span className="text-gray-500">Memory BW</span>
+                        <br />
+                        <span className="font-medium">{profile.memory_bandwidth_gbps} GB/s</span>
+                      </div>
+                    )}
+                    {profile.vram_bandwidth_gbps && (
+                      <div className="rounded bg-gray-900/30 p-2">
+                        <span className="text-gray-500">VRAM BW</span>
+                        <br />
+                        <span className="font-medium">{profile.vram_bandwidth_gbps} GB/s</span>
+                      </div>
+                    )}
+                    {profile.gpu_compute_fp16_tflops && (
+                      <div className="rounded bg-gray-900/30 p-2">
+                        <span className="text-gray-500">FP16 Compute</span>
+                        <br />
+                        <span className="font-medium">{profile.gpu_compute_fp16_tflops} TFLOPS</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {!profile.is_active && (
                   <button
                     onClick={() => handleActivate(profile.id)}
@@ -548,6 +582,31 @@ export default function HardwareProfiles() {
                     <span className="font-medium">{specs.total_vram_gb} GB</span>
                   </div>
                 )}
+                {(specs.memory_bandwidth_gbps ||
+                  specs.vram_bandwidth_gbps ||
+                  specs.gpu_compute_fp16_tflops) && (
+                  <div className="mt-3 rounded-lg bg-gray-900/50 p-3 text-xs space-y-1">
+                    <p className="text-gray-400 font-medium">Estimated throughput specs</p>
+                    {specs.memory_bandwidth_gbps && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Memory bandwidth</span>
+                        <span>{specs.memory_bandwidth_gbps} GB/s</span>
+                      </div>
+                    )}
+                    {specs.vram_bandwidth_gbps && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">VRAM bandwidth</span>
+                        <span>{specs.vram_bandwidth_gbps} GB/s</span>
+                      </div>
+                    )}
+                    {specs.gpu_compute_fp16_tflops && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">FP16 compute</span>
+                        <span>{specs.gpu_compute_fp16_tflops} TFLOPS</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <div className="mt-4 rounded-lg bg-gray-900/50 p-3 text-xs text-gray-400">
                   {specs.is_unified_memory
                     ? "Unified memory architecture detected."
@@ -569,6 +628,20 @@ export default function HardwareProfiles() {
                   ? ` · ${active.total_vram_gb} GB VRAM`
                   : " · Unified"}
               </p>
+              {(active.memory_bandwidth_gbps ||
+                active.vram_bandwidth_gbps ||
+                active.gpu_compute_fp16_tflops) && (
+                <p className="text-xs text-gray-500 mt-2">
+                  {active.vram_bandwidth_gbps
+                    ? `${active.vram_bandwidth_gbps} GB/s VRAM`
+                    : active.memory_bandwidth_gbps
+                      ? `${active.memory_bandwidth_gbps} GB/s memory`
+                      : ""}
+                  {active.gpu_compute_fp16_tflops
+                    ? ` · ${active.gpu_compute_fp16_tflops} TFLOPS`
+                    : ""}
+                </p>
+              )}
             </div>
           )}
         </aside>
