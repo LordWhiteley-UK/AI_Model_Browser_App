@@ -1,6 +1,6 @@
 [package]
 name = "ai-model-browser"
-version = "0.1.2"
+version = "0.1.5"
 description = "AI Model Browser - Discover and manage local AI models"
 authors = ["Claude Code"]
 edition = "2021"
