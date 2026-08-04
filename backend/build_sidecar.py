@@ -29,6 +29,7 @@ def main():
 
     hidden_imports = [
         # Project modules
+        "data.hardware_specs",
         "services.compatibility_engine",
         "services.download_queue",
         "services.hardware_detector",
@@ -37,6 +38,7 @@ def main():
         "services.runner_detector",
         "services.runner_integration",
         "services.settings_service",
+        "services.tokens_per_second",
         "services.url_parser",
         "models.hardware",
         "models.inventory",
