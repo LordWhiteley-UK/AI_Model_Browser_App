@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 import json
 import logging
 import subprocess
-from typing import Literal
+from typing import Any, Literal
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select
@@ -28,7 +28,7 @@ from models.runner_settings import RunnerPathOverride
 
 download_manager = DownloadManager()
 
-app = FastAPI(title="AI Model Browser API", version="0.1.2")
+app = FastAPI(title="AI Model Browser API", version="0.1.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,7 +51,7 @@ def health():
     return {
         "status": "ok",
         "service": "ai-model-browser-backend",
-        "version": "0.1.2",
+        "version": "0.1.3",
     }
 
 
