@@ -5,6 +5,7 @@ import type { DiscoverResult, ModelFamily, ModelFile } from "../types";
 import ModelAuthorIcon from "../components/ModelAuthorIcon";
 import {
   AlertCircle,
+  ArrowUpDown,
   Calendar,
   Check,
   Copy,
@@ -45,6 +46,23 @@ const FORMAT_FILTERS = [
   "Pickled",
   "ONNX",
   "EXL2",
+];
+
+const FAMILY_SORT_OPTIONS = [
+  { id: "default", label: "Default" },
+  { id: "downloads", label: "Downloads" },
+  { id: "likes", label: "Likes" },
+  { id: "name", label: "Name" },
+  { id: "params", label: "Parameters" },
+  { id: "date", label: "Newest" },
+];
+
+const FILE_SORT_OPTIONS = [
+  { id: "default", label: "Default" },
+  { id: "size", label: "Size" },
+  { id: "tokens", label: "Est. tok/s" },
+  { id: "quant", label: "Quantization" },
+  { id: "name", label: "Name" },
 ];
 
 type DiscoverMode = "popular" | "trending" | "search" | "url";
@@ -160,6 +178,8 @@ export default function Discover({
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadResult, setDownloadResult] = useState<string | null>(null);
   const [downloadTarget, setDownloadTarget] = useState("default");
+  const [familySort, setFamilySort] = useState("default");
+  const [fileSort, setFileSort] = useState("default");
 
   function setModeAndClear(newMode: DiscoverMode) {
     setMode(newMode);
@@ -294,7 +314,66 @@ export default function Discover({
     navigator.clipboard.writeText(url);
   }
 
-  const families = result?.families ?? [];
+  const families = useMemo(() => {
+    const list = (result?.families ?? []).map((family) => ({ ...family }));
+    switch (familySort) {
+      case "downloads":
+        list.sort((a, b) => b.downloads - a.downloads);
+        break;
+      case "likes":
+        list.sort((a, b) => b.likes - a.likes);
+        break;
+      case "name":
+        list.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "params":
+        list.sort((a, b) => {
+          const ap = a.params_billions ?? -1;
+          const bp = b.params_billions ?? -1;
+          return bp - ap;
+        });
+        break;
+      case "date":
+        list.sort((a, b) => {
+          const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return bd - ad;
+        });
+        break;
+      default:
+        break;
+    }
+    return list;
+  }, [result?.families, familySort]);
+
+  function sortFiles(files: ModelFile[]): ModelFile[] {
+    const sorted = [...files];
+    switch (fileSort) {
+      case "size":
+        sorted.sort((a, b) => b.size_bytes - a.size_bytes);
+        break;
+      case "tokens":
+        sorted.sort((a, b) => {
+          const at = a.prediction?.generation_tok_s ?? -1;
+          const bt = b.prediction?.generation_tok_s ?? -1;
+          return bt - at;
+        });
+        break;
+      case "quant":
+        sorted.sort((a, b) => {
+          const aq = a.quant_bits ?? -1;
+          const bq = b.quant_bits ?? -1;
+          return bq - aq;
+        });
+        break;
+      case "name":
+        sorted.sort((a, b) => a.filename.localeCompare(b.filename));
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
@@ -425,6 +504,50 @@ export default function Discover({
                   {fmt === "All" ? "All formats" : fmt}
                 </button>
               ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                <ArrowUpDown className="w-4 h-4" />
+                <span>Sort families:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {FAMILY_SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setFamilySort(opt.id)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      familySort === opt.id
+                        ? "bg-cyan-600 text-white"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                <ArrowUpDown className="w-4 h-4" />
+                <span>Sort files:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {FILE_SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setFileSort(opt.id)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      fileSort === opt.id
+                        ? "bg-orange-600 text-white"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </>
         )}
@@ -619,6 +742,7 @@ export default function Discover({
             onDownload={handleDownload}
             onCopyUrl={copyUrl}
             downloadingId={downloadingId}
+            sortFiles={sortFiles}
           />
         ))}
       </section>
@@ -633,6 +757,7 @@ function FamilyCard({
   onDownload,
   onCopyUrl,
   downloadingId,
+  sortFiles,
 }: {
   family: ModelFamily;
   expanded: boolean;
@@ -640,6 +765,7 @@ function FamilyCard({
   onDownload: (url: string, filename: string, familyId: string) => void;
   onCopyUrl: (url: string) => void;
   downloadingId: string | null;
+  sortFiles: (files: ModelFile[]) => ModelFile[];
 }) {
   const bestCompat = useMemo(() => {
     const statuses = family.files.map((f) => f.compatibility.status);
@@ -647,6 +773,8 @@ function FamilyCard({
     if (statuses.includes("yellow")) return "yellow";
     return "red";
   }, [family.files]);
+
+  const sortedFiles = useMemo(() => sortFiles(family.files), [family.files, sortFiles]);
 
   return (
     <div className="rounded-xl border border-gray-700 bg-gray-800 shadow-sm overflow-hidden">
@@ -707,7 +835,7 @@ function FamilyCard({
             </p>
           ) : (
             <ul className="divide-y divide-gray-700">
-              {family.files.map((file, idx) => {
+              {sortedFiles.map((file, idx) => {
                 const id = `${family.id}/${file.filename}`;
                 const isDownloading = downloadingId === id;
                 return (
