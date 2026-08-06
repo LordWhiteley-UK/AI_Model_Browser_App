@@ -131,6 +131,23 @@ src-tauri/target/release/bundle/appimage/
 
 See `BUILD.md` for full local build and CI instructions.
 
+## macOS Gatekeeper notice
+
+The DMG downloaded from GitHub Releases is not currently code-signed or notarized. macOS may show a message saying the app is "damaged" and can't be opened. The file is not corrupted; this is Gatekeeper's stricter handling of apps downloaded from the internet.
+
+To open the app:
+
+1. Drag `AI Model Browser.app` from the mounted DMG into **Applications**.
+2. Open **Terminal** and run:
+
+```bash
+xattr -cr /Applications/AI\ Model\ Browser.app
+```
+
+3. Launch the app from **Applications**. If a " cannot be opened" prompt appears, open **System Settings → Privacy & Security** and click **Allow Anyway**.
+
+Alternatively, you can build the app locally (see the macOS quick start above). A locally built app does not carry the internet-download quarantine flag and usually opens without this extra step.
+
 ## Usage
 
 1. Launch the app. A startup overlay shows backend sidecar logs until the backend health check passes.
