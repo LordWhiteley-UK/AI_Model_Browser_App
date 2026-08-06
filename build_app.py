@@ -75,6 +75,11 @@ def build_tauri() -> None:
         raise RuntimeError("Could not patch beforeBuildCommand in tauri.conf.json")
     conf_path.write_text(patched_conf)
     try:
+        # Cargo's build script caching does not notice when frontend/dist
+        # files change, so the old JS bundle can remain embedded in the
+        # Rust binary. Clean this package so Tauri re-embeds the latest
+        # frontend assets every time.
+        run(["cargo", "clean", "-p", "ai-model-browser"], cwd=TAURI_DIR)
         run([str(tauri_bin), "build"], cwd=TAURI_DIR)
     finally:
         conf_path.write_text(original_conf)
