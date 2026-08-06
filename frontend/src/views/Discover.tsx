@@ -321,10 +321,10 @@ export default function Discover({
     const sign = familySortAsc ? 1 : -1;
     switch (familySort) {
       case "downloads":
-        list.sort((a, b) => sign * (b.downloads - a.downloads));
+        list.sort((a, b) => sign * (a.downloads - b.downloads));
         break;
       case "likes":
-        list.sort((a, b) => sign * (b.likes - a.likes));
+        list.sort((a, b) => sign * (a.likes - b.likes));
         break;
       case "name":
         list.sort((a, b) =>
@@ -335,14 +335,14 @@ export default function Discover({
         list.sort((a, b) => {
           const ap = a.params_billions ?? -1;
           const bp = b.params_billions ?? -1;
-          return sign * (bp - ap);
+          return sign * (ap - bp);
         });
         break;
       case "date":
         list.sort((a, b) => {
           const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
           const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return sign * (bd - ad);
+          return sign * (ad - bd);
         });
         break;
       default:
@@ -356,20 +356,20 @@ export default function Discover({
     const sign = fileSortAsc ? 1 : -1;
     switch (fileSort) {
       case "size":
-        sorted.sort((a, b) => sign * (b.size_bytes - a.size_bytes));
+        sorted.sort((a, b) => sign * (a.size_bytes - b.size_bytes));
         break;
       case "tokens":
         sorted.sort((a, b) => {
           const at = a.prediction?.generation_tok_s ?? -1;
           const bt = b.prediction?.generation_tok_s ?? -1;
-          return sign * (bt - at);
+          return sign * (at - bt);
         });
         break;
       case "quant":
         sorted.sort((a, b) => {
           const aq = a.quant_bits ?? -1;
           const bq = b.quant_bits ?? -1;
-          return sign * (bq - aq);
+          return sign * (aq - bq);
         });
         break;
       case "name":

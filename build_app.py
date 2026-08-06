@@ -77,9 +77,11 @@ def build_tauri() -> None:
     try:
         # Cargo's build script caching does not notice when frontend/dist
         # files change, so the old JS bundle can remain embedded in the
-        # Rust binary. Clean this package so Tauri re-embeds the latest
-        # frontend assets every time.
-        run(["cargo", "clean", "-p", "ai-model-browser"], cwd=TAURI_DIR)
+        # Rust binary. Remove the release target directory so Tauri always
+        # re-embeds the latest frontend assets.
+        release_target = TAURI_DIR / "target" / "release"
+        if release_target.exists():
+            shutil.rmtree(release_target)
         run([str(tauri_bin), "build"], cwd=TAURI_DIR)
     finally:
         conf_path.write_text(original_conf)
