@@ -3,7 +3,8 @@ import re
 from typing import Any
 
 import httpx
-from huggingface_hub import HfApi, hf_hub_url
+import requests
+from huggingface_hub import HfApi, configure_http_backend, hf_hub_url
 
 from providers.base import BaseProvider
 
@@ -153,6 +154,15 @@ def _fetch_readme_summary(repo_id: str) -> str | None:
         if cleaned:
             return cleaned[:240] + ("..." if len(cleaned) > 240 else "")
     return None
+
+
+def _http_backend_factory() -> requests.Session:
+    session = requests.Session()
+    session.headers["Accept-Encoding"] = "identity"
+    return session
+
+
+configure_http_backend(_http_backend_factory)
 
 
 class HuggingFaceProvider(BaseProvider):
