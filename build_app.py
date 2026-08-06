@@ -78,10 +78,16 @@ def build_tauri() -> None:
         # Cargo's build script caching does not notice when frontend/dist
         # files change, so the old JS bundle can remain embedded in the
         # Rust binary. Remove the release target directory so Tauri always
-        # re-embeds the latest frontend assets.
+        # re-embeds the latest frontend assets. Use the shell because
+        # shutil.rmtree can fail on files with quarantine/extended attrs.
         release_target = TAURI_DIR / "target" / "release"
         if release_target.exists():
-            shutil.rmtree(release_target)
+            subprocess.run(
+                ["rm", "-rf", str(release_target)],
+                cwd=TAURI_DIR,
+                env=os.environ.copy(),
+                check=True,
+            )
         run([str(tauri_bin), "build"], cwd=TAURI_DIR)
     finally:
         conf_path.write_text(original_conf)
