@@ -61,7 +61,23 @@ def build_tauri() -> None:
     tauri_bin = FRONTEND_DIR / "node_modules" / ".bin" / "tauri"
     if not tauri_bin.exists():
         raise FileNotFoundError("Tauri CLI not found in frontend/node_modules/.bin/tauri")
-    run([str(tauri_bin), "build"], cwd=TAURI_DIR)
+
+    # The local npm-installed tauri binary does not reliably resolve the
+    # relative `../frontend` path in beforeBuildCommand. Patch to an absolute
+    # path temporarily, then restore it so the repo stays portable.
+    conf_path = TAURI_DIR / "tauri.conf.json"
+    original_conf = conf_path.read_text()
+    patched_conf = original_conf.replace(
+        '"beforeBuildCommand": "cd ../frontend && npm run build",',
+        f'"beforeBuildCommand": "cd {FRONTEND_DIR} && npm run build",',
+    )
+    if patched_conf == original_conf:
+        raise RuntimeError("Could not patch beforeBuildCommand in tauri.conf.json")
+    conf_path.write_text(patched_conf)
+    try:
+        run([str(tauri_bin), "build"], cwd=TAURI_DIR)
+    finally:
+        conf_path.write_text(original_conf)
 
 
 def open_bundle_folder() -> None:
