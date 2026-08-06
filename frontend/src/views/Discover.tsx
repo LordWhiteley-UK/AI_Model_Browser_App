@@ -179,7 +179,9 @@ export default function Discover({
   const [downloadResult, setDownloadResult] = useState<string | null>(null);
   const [downloadTarget, setDownloadTarget] = useState("default");
   const [familySort, setFamilySort] = useState("default");
+  const [familySortAsc, setFamilySortAsc] = useState(false);
   const [fileSort, setFileSort] = useState("default");
+  const [fileSortAsc, setFileSortAsc] = useState(false);
 
   function setModeAndClear(newMode: DiscoverMode) {
     setMode(newMode);
@@ -316,58 +318,66 @@ export default function Discover({
 
   const families = useMemo(() => {
     const list = (result?.families ?? []).map((family) => ({ ...family }));
+    const sign = familySortAsc ? 1 : -1;
     switch (familySort) {
       case "downloads":
-        list.sort((a, b) => b.downloads - a.downloads);
+        list.sort((a, b) => sign * (b.downloads - a.downloads));
         break;
       case "likes":
-        list.sort((a, b) => b.likes - a.likes);
+        list.sort((a, b) => sign * (b.likes - a.likes));
         break;
       case "name":
-        list.sort((a, b) => a.name.localeCompare(b.name));
+        list.sort((a, b) =>
+          sign === 1 ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name),
+        );
         break;
       case "params":
         list.sort((a, b) => {
           const ap = a.params_billions ?? -1;
           const bp = b.params_billions ?? -1;
-          return bp - ap;
+          return sign * (bp - ap);
         });
         break;
       case "date":
         list.sort((a, b) => {
           const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
           const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
-          return bd - ad;
+          return sign * (bd - ad);
         });
         break;
       default:
         break;
     }
     return list;
-  }, [result?.families, familySort]);
+  }, [result?.families, familySort, familySortAsc]);
 
   function sortFiles(files: ModelFile[]): ModelFile[] {
     const sorted = [...files];
+    const sign = fileSortAsc ? 1 : -1;
     switch (fileSort) {
       case "size":
-        sorted.sort((a, b) => b.size_bytes - a.size_bytes);
+        sorted.sort((a, b) => sign * (b.size_bytes - a.size_bytes));
         break;
       case "tokens":
         sorted.sort((a, b) => {
           const at = a.prediction?.generation_tok_s ?? -1;
           const bt = b.prediction?.generation_tok_s ?? -1;
-          return bt - at;
+          return sign * (bt - at);
         });
         break;
       case "quant":
         sorted.sort((a, b) => {
           const aq = a.quant_bits ?? -1;
           const bq = b.quant_bits ?? -1;
-          return bq - aq;
+          return sign * (bq - aq);
         });
         break;
       case "name":
-        sorted.sort((a, b) => a.filename.localeCompare(b.filename));
+        sorted.sort((a, b) =>
+          sign === 1
+            ? a.filename.localeCompare(b.filename)
+            : b.filename.localeCompare(a.filename),
+        );
         break;
       default:
         break;
@@ -515,7 +525,14 @@ export default function Discover({
                 {FAMILY_SORT_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
-                    onClick={() => setFamilySort(opt.id)}
+                    onClick={() => {
+                      if (familySort === opt.id) {
+                        setFamilySortAsc((prev) => !prev);
+                      } else {
+                        setFamilySort(opt.id);
+                        setFamilySortAsc(false);
+                      }
+                    }}
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
                       familySort === opt.id
                         ? "bg-cyan-600 text-white"
@@ -523,6 +540,11 @@ export default function Discover({
                     }`}
                   >
                     {opt.label}
+                    {familySort === opt.id && (
+                      <span className="ml-1.5 opacity-80">
+                        {familySortAsc ? "↑" : "↓"}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -537,7 +559,14 @@ export default function Discover({
                 {FILE_SORT_OPTIONS.map((opt) => (
                   <button
                     key={opt.id}
-                    onClick={() => setFileSort(opt.id)}
+                    onClick={() => {
+                      if (fileSort === opt.id) {
+                        setFileSortAsc((prev) => !prev);
+                      } else {
+                        setFileSort(opt.id);
+                        setFileSortAsc(false);
+                      }
+                    }}
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
                       fileSort === opt.id
                         ? "bg-orange-600 text-white"
@@ -545,6 +574,11 @@ export default function Discover({
                     }`}
                   >
                     {opt.label}
+                    {fileSort === opt.id && (
+                      <span className="ml-1.5 opacity-80">
+                        {fileSortAsc ? "↑" : "↓"}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
