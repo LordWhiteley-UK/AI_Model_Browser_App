@@ -97,6 +97,73 @@ GitHub Actions builds all three platforms automatically on every push to `main`:
 
 To trigger manually, go to **Actions → Build AI Model Browser → Run workflow**.
 
+## macOS code signing and notarization
+
+The release DMG currently builds without an Apple Developer ID signature, so macOS Gatekeeper may report it as "damaged" after a browser download. This is a quarantine/authorization issue, not file corruption (see the README workaround).
+
+To remove the workaround and ship a properly trusted macOS app, you need an **Apple Developer Program** membership ($99/year) and the following:
+
+1. **Developer ID Application certificate** (created in Apple Developer → Certificates).
+2. **Developer ID Installer certificate** if you want to ship a `.pkg` later.
+3. A notarization app-specific password from **appleid.apple.com**.
+4. Your Apple Team ID.
+
+### Configure Tauri
+
+Add a `signing` section to `src-tauri/tauri.conf.json` under `bundle`:
+
+```json
+{
+  "bundle": {
+    "signing": {
+      "identity": "Developer ID Application: Your Name (TEAM_ID)",
+      "providerShortName": "TEAM_ID"
+    }
+  }
+}
+```
+
+For Tauri v2, code signing and notarization are also controlled by environment variables during the build. Set these in the GitHub Actions macOS job:
+
+- `APPLE_CERTIFICATE` — base64-encoded `.p12` file.
+- `APPLE_CERTIFICATE_PASSWORD` — password for the `.p12`.
+- `APPLE_ID` — Apple ID email.
+- `APPLE_TEAM_ID` — 10-character team ID.
+- `APPLE_PASSWORD` — app-specific password.
+
+### Update CI
+
+In `.github/workflows/build.yml`, add these steps to the macOS `build-tauri` job before `cargo tauri build`:
+
+```yaml
+      - name: Install Apple certificates
+        if: matrix.platform == 'macos-latest'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$(openssl rand -base64 16)" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
+```
+
+Also export the notarization credentials before the build:
+
+```yaml
+      - name: Build Tauri app
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+        run: cargo tauri build
+```
+
+After this change, `cargo tauri build` will sign the app binary and notarize the DMG automatically on macOS runners.
+
 ## Notes
 
 - The backend sidecar filename must follow Tauri’s external binary convention:
