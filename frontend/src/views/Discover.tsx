@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Gauge,
   Globe,
+  HardDrive,
   Heart,
   Link2,
   Loader2,
@@ -864,6 +865,11 @@ function FamilyCard({
 
   const sortedFiles = useMemo(() => sortFiles(family.files), [family.files, sortFiles]);
 
+  const totalSize = useMemo(
+    () => family.files.reduce((sum, f) => sum + (f.size_bytes || 0), 0),
+    [family.files],
+  );
+
   return (
     <div className="rounded-xl border border-gray-700 bg-gray-800 shadow-sm overflow-hidden">
       <button
@@ -889,6 +895,12 @@ function FamilyCard({
               <span>{family.author}</span>
               <span>·</span>
               <span>{family.capabilities}</span>
+              {family.files.length > 1 && (
+                <>
+                  <span>·</span>
+                  <span>{family.files.length} files</span>
+                </>
+              )}
             </p>
             {family.description && (
               <p className="mt-2 text-sm text-gray-300 line-clamp-2">
@@ -901,6 +913,12 @@ function FamilyCard({
               <span className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
                 {formatDate(family.created_at)}
+              </span>
+            )}
+            {totalSize > 0 && (
+              <span className="flex items-center gap-1">
+                <HardDrive className="w-4 h-4" />
+                {formatBytes(totalSize)}
               </span>
             )}
             <span className="flex items-center gap-1">
