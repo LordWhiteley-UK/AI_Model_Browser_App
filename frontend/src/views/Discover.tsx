@@ -48,6 +48,11 @@ const FORMAT_FILTERS = [
   "EXL2",
 ];
 
+const LANGUAGE_FILTERS = [
+  { id: "all", label: "All languages" },
+  { id: "en", label: "English only" },
+];
+
 const FAMILY_SORT_OPTIONS = [
   { id: "default", label: "Default" },
   { id: "downloads", label: "Downloads" },
@@ -165,6 +170,7 @@ export default function Discover({
   const [urlInput, setUrlInput] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeFormat, setActiveFormat] = useState("All");
+  const [activeLanguage, setActiveLanguage] = useState("all");
   const [result, setResult] = useState<DiscoverResult | null>(null);
   const [urlResult, setUrlResult] = useState<
     Awaited<ReturnType<typeof discoverUrl>> | null
@@ -189,6 +195,10 @@ export default function Discover({
     if (newMode !== "url") setUrlInput("");
     setUrlResult(null);
     setExpandedUrlFiles(false);
+    setFamilySort("default");
+    setFamilySortAsc(false);
+    setFileSort("default");
+    setFileSortAsc(false);
   }
 
   async function performSearch() {
@@ -211,6 +221,8 @@ export default function Discover({
       const capabilityFilter =
         activeFilter === "All" ? undefined : activeFilter;
       const formatFilter = activeFormat === "All" ? undefined : activeFormat;
+      const languageFilter =
+        activeLanguage === "all" ? undefined : activeLanguage;
       let data: DiscoverResult;
       if (mode === "popular") {
         data = await searchModels(
@@ -219,6 +231,7 @@ export default function Discover({
           formatFilter,
           20,
           "downloads",
+          languageFilter,
         );
       } else if (mode === "trending") {
         data = await searchModels(
@@ -227,6 +240,7 @@ export default function Discover({
           formatFilter,
           20,
           "trendingScore",
+          languageFilter,
         );
       } else {
         data = await searchModels(
@@ -234,6 +248,8 @@ export default function Discover({
           capabilityFilter,
           formatFilter,
           20,
+          undefined,
+          languageFilter,
         );
       }
       setResult(data);
@@ -266,7 +282,7 @@ export default function Discover({
     }
     performSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, activeFilter, activeFormat]);
+  }, [mode, activeFilter, activeFormat, activeLanguage]);
 
   function toggleFamily(id: string) {
     setExpandedFamilies((prev) => {
@@ -516,6 +532,28 @@ export default function Discover({
               ))}
             </div>
 
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5 text-sm text-gray-400">
+                <Globe className="w-4 h-4" />
+                <span>Language:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {LANGUAGE_FILTERS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setActiveLanguage(opt.id)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      activeLanguage === opt.id
+                        ? "bg-pink-600 text-white"
+                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5 text-sm text-gray-400">
                 <ArrowUpDown className="w-4 h-4" />
@@ -611,6 +649,15 @@ export default function Discover({
             </span>
             <span>·</span>
             <span>{result.count} result(s)</span>
+            <span>·</span>
+            <span>
+              Sorted by{" "}
+              <strong className="text-white">
+                {FAMILY_SORT_OPTIONS.find((o) => o.id === familySort)?.label ??
+                  familySort}
+                {familySort !== "default" && (familySortAsc ? " ↑" : " ↓")}
+              </strong>
+            </span>
             {(result.active_profile.memory_bandwidth_gbps ||
               result.active_profile.vram_bandwidth_gbps) && (
               <span className="text-xs text-gray-500">
@@ -756,6 +803,13 @@ export default function Discover({
                 : mode === "search"
                   ? "Try a different keyword or model name."
                   : "Quantized formats like GGUF often live in separate repos. Try “All formats” or use Search."}
+              {activeLanguage !== "all" && (
+                <p className="mt-2 text-sm">
+                  {activeLanguage === "en"
+                    ? "English-only mode hides models whose card explicitly declares a non-English language."
+                    : ""}
+                </p>
+              )}
             </p>
           </div>
         )}

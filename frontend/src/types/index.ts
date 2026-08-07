@@ -91,6 +91,7 @@ export interface ModelFamily {
   context_length: number | null;
   capabilities: string;
   description?: string | null;
+  languages?: string[];
   downloads: number;
   likes: number;
   created_at: string | null;
@@ -101,6 +102,7 @@ export interface DiscoverResult {
   query: string;
   capability: string | null;
   format: string | null;
+  language: string | null;
   sort?: "downloads" | "trendingScore";
   count: number;
   active_profile: Pick<

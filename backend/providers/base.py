@@ -11,5 +11,6 @@ class BaseProvider(ABC):
         format: str | None = None,
         limit: int = 20,
         sort: str = "downloads",
+        language: str | None = None,
     ) -> list[dict[str, Any]]:
         raise NotImplementedError

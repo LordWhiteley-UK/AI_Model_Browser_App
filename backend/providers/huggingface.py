@@ -126,6 +126,44 @@ def _extract_description(model) -> str | None:
     return None
 
 
+def _model_languages(model) -> list[str]:
+    """Extract declared language tag(s) from the model card, if any."""
+    card_data = getattr(model, "cardData", None) or {}
+    if not isinstance(card_data, dict):
+        return []
+    languages = card_data.get("language")
+    if languages is None:
+        return []
+    if isinstance(languages, str):
+        return [languages]
+    if isinstance(languages, (list, tuple)):
+        return [str(lang) for lang in languages]
+    return []
+
+
+def _matches_language(model, language: str | None) -> bool:
+    """Return True if the model matches the requested language filter.
+
+    Models with no declared language metadata are kept so that language-agnostic
+    checkpoints (embeddings, vision, general models) are not excluded.
+    Multilingual models are also kept when English is requested.
+    """
+    if not language:
+        return True
+
+    # Hugging Face model tags are the primary source for language metadata.
+    tags = [str(t).lower() for t in getattr(model, "tags", []) or []]
+    if language in tags or "multilingual" in tags:
+        return True
+
+    card_languages = _model_languages(model)
+    if not card_languages:
+        return True
+    if "multilingual" in card_languages:
+        return True
+    return any(language.lower() in lang.lower() for lang in card_languages)
+
+
 def _fetch_readme_summary(repo_id: str) -> str | None:
     url = f"https://huggingface.co/{repo_id}/raw/main/README.md"
     try:
@@ -193,6 +231,7 @@ class HuggingFaceProvider(BaseProvider):
         format: str | None = None,
         limit: int = 20,
         sort: str = "downloads",
+        language: str | None = None,
     ) -> list[dict[str, Any]]:
         # Some formats (GGUF, EXL2, MLX) usually live in dedicated quantized
         # repos. Searching the global top downloads for them almost always
@@ -200,6 +239,7 @@ class HuggingFaceProvider(BaseProvider):
         effective_query = self._build_effective_query(query, format)
         models = self.api.list_models(
             search=effective_query,
+            filter=language,
             limit=limit,
             sort=sort,
             full=True,
@@ -213,6 +253,9 @@ class HuggingFaceProvider(BaseProvider):
 
             inferred_capability = _infer_capability(model.tags or [])
             if capability and capability not in inferred_capability.split(", "):
+                continue
+
+            if not _matches_language(model, language):
                 continue
 
             files = self._list_model_files(model.modelId)
@@ -242,6 +285,7 @@ class HuggingFaceProvider(BaseProvider):
                 "context_length": None,
                 "capabilities": inferred_capability,
                 "description": description,
+                "languages": _model_languages(model),
                 "downloads": getattr(model, "downloads", 0) or 0,
                 "likes": getattr(model, "likes", 0) or 0,
                 "created_at": created_at,

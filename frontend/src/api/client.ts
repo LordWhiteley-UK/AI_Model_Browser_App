@@ -209,11 +209,13 @@ export async function searchModels(
   format?: string,
   limit = 20,
   sort?: "downloads" | "trendingScore",
+  language?: string,
 ): Promise<DiscoverResult> {
   const params = new URLSearchParams();
   params.set("query", query);
   if (capability) params.set("capability", capability);
   if (format) params.set("format", format);
+  if (language) params.set("language", language);
   if (sort) params.set("sort", sort);
   params.set("limit", String(limit));
   return apiGet<DiscoverResult>(`/api/discover/search?${params.toString()}`);

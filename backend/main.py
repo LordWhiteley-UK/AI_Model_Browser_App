@@ -285,6 +285,7 @@ def discover_search(
     query: str = Query(default=""),
     capability: str | None = Query(default=None),
     format: str | None = Query(default=None),
+    language: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=50),
     sort: Literal["downloads", "trendingScore"] = Query(default="downloads"),
     session: Session = Depends(get_session),
@@ -301,6 +302,7 @@ def discover_search(
             query=query,
             capability=capability,
             format=format,
+            language=language,
             limit=limit,
             sort=sort,
         )
@@ -318,6 +320,7 @@ def discover_search(
         "query": query,
         "capability": capability,
         "format": format,
+        "language": language,
         "sort": sort,
         "count": len(families),
         "active_profile": {
